@@ -1,0 +1,9 @@
+minimumReleaseAge: 0
+ignoredBuiltDependencies:
+  - lefthook
+  - sharp
+  - unrs-resolver
+allowBuilds:
+  lefthook: true
+  sharp: true
+  unrs-resolver: true

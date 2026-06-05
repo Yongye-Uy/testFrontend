@@ -1,0 +1,31 @@
+# lefthook — generic, language-agnostic git hooks for all EPPLMS repositories.
+# This base config enforces only workflow rules that apply regardless of stack
+# (conventional commits, branch naming, hygiene). Language templates (Next.js, Go)
+# extend the `pre-commit` hook with their own lint / format / test commands.
+#
+# Activate in a clone with:  lefthook install
+# Docs: https://lefthook.dev
+
+commit-msg:
+  commands:
+    conventional-commit:
+      run: bash scripts/hooks/commit-msg.sh {1}
+
+pre-commit:
+  parallel: true
+  commands:
+    branch-name:
+      run: bash scripts/hooks/branch-name.sh
+    trailing-whitespace:
+      run: git diff --cached --check
+    large-files:
+      run: bash scripts/hooks/check-large-files.sh {staged_files}
+    linter:
+      glob: "*.{js,jsx,ts,tsx}"
+      run: npx eslint {staged_files} --fix && git add {staged_files}
+    formatter:
+      glob: "*.{js,jsx,ts,tsx,json,css,md}"
+      run: npx prettier --write {staged_files} && git add {staged_files}
+    unit-tests:
+      glob: "*.{js,jsx,ts,tsx}"
+      run: npx vitest related --run {staged_files}
