@@ -1,4 +1,4 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is a [Next.js](https://nextjs.org) frontend workspace for the EPPLMS project.
 
 ## Getting Started
 
@@ -15,7 +15,7 @@ pnpm install
 pnpm lefthook install
 ```
 
-Run the development server:
+Run the development server from the repository root:
 
 ```bash
 npm run dev
@@ -29,9 +29,12 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The web app lives in `apps/web`. Start editing from `apps/web/src/app`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+By default, the frontend proxies backend traffic through these environment variables:
+
+- `NEXT_PUBLIC_USER_SERVICE_URL`
+- `NEXT_PUBLIC_COURSE_SERVICE_URL`
 
 ## Learn More
 
