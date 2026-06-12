@@ -167,24 +167,29 @@ function SidebarLink({
   onClick: () => void;
 }) {
   const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+  const Icon = item.icon;
   return (
     <Link
       href={item.href}
       onClick={onClick}
       title={collapsed ? item.label : undefined}
-      className={`group relative flex items-center justify-between rounded-lg text-sm font-medium transition ${collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2"} ${active ? "bg-navy-50 text-navy-900" : "text-ink-600 hover:bg-cream-100 hover:text-navy-900"}`}
+      className={`group relative flex items-center rounded-lg text-sm font-medium transition ${collapsed ? "justify-center px-2 py-2.5" : "justify-between px-3 py-2"} ${active ? "bg-navy-50 text-navy-900" : "text-ink-600 hover:bg-cream-100 hover:text-navy-900"}`}
     >
       {active && !collapsed && (
         <span className="absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-gold-500" />
       )}
-      <span className={collapsed ? "lg:hidden" : ""}>{item.label}</span>
+      <span
+        className={`flex min-w-0 items-center gap-3 ${collapsed ? "justify-center" : ""}`}
+      >
+        <span className="shrink-0 text-ink-500 group-hover:text-inherit">
+          {Icon ? <Icon fontSize="small" /> : null}
+        </span>
+        <span className={collapsed ? "lg:hidden" : ""}>{item.label}</span>
+      </span>
       {item.hint && !collapsed && (
         <span className="rounded-full bg-gold-50 px-2 py-0.5 text-[10px] text-gold-700 ring-1 ring-gold-200">
           {item.hint}
         </span>
-      )}
-      {collapsed && (
-        <span className="hidden lg:inline">{item.label.slice(0, 1)}</span>
       )}
     </Link>
   );

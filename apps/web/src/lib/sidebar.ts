@@ -1,3 +1,10 @@
+import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
+import MenuBookRoundedIcon from "@mui/icons-material/MenuBookRounded";
+import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
+import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
+import PeopleAltRoundedIcon from "@mui/icons-material/PeopleAltRounded";
+import ShieldRoundedIcon from "@mui/icons-material/ShieldRounded";
+import type { SvgIconComponent } from "@mui/icons-material";
 import type { User } from "@/types/user";
 import { isDirector, isLecturer, isSuperAdmin } from "./auth";
 
@@ -5,35 +12,65 @@ export type SidebarItem = {
   label: string;
   href: string;
   hint?: string;
+  icon?: SvgIconComponent;
 };
 
 export function sidebarForUser(user: User | null): SidebarItem[] {
   if (isSuperAdmin(user)) {
     return [
-      { label: "Dashboard", href: "/dashboard" },
-      { label: "Users", href: "/users" },
-      { label: "Roles", href: "/roles" },
-      { label: "Assessments", href: "/assessments" },
-      { label: "Permissions", href: "/permissions" },
+      {
+        label: "Dashboard",
+        href: "/dashboard",
+        icon: DashboardRoundedIcon,
+      },
+      {
+        label: "Users",
+        href: "/users",
+        icon: PeopleAltRoundedIcon,
+      },
+      {
+        label: "Roles & Permissions",
+        href: "/roles",
+        icon: ShieldRoundedIcon,
+      },
     ];
   }
 
   if (isDirector(user)) {
     return [
-      { label: "Dashboard", href: "/dashboard" },
-      { label: "Semesters", href: "/semesters" },
-      { label: "Course Catalog", href: "/courses" },
-      { label: "Batches", href: "/batches" },
-      { label: "Users", href: "/users" },
+      {
+        label: "Dashboard",
+        href: "/dashboard",
+        icon: DashboardRoundedIcon,
+      },
+      {
+        label: "Semesters",
+        href: "/semesters",
+        icon: CalendarMonthRoundedIcon,
+      },
+      {
+        label: "Course Catalog",
+        href: "/courses",
+        icon: MenuBookRoundedIcon,
+      },
+      {
+        label: "Batches",
+        href: "/batches",
+        icon: GroupsRoundedIcon,
+      },
+      {
+        label: "Users",
+        href: "/users",
+        icon: PeopleAltRoundedIcon,
+      },
     ];
   }
 
-  if (isLecturer(user)) {
-    return [
-      { label: "Dashboard", href: "/dashboard" },
-      { label: "Assessments", href: "/assessments" },
-    ];
-  }
-
-  return [{ label: "Dashboard", href: "/dashboard" }];
+  return [
+    {
+      label: "Dashboard",
+      href: "/dashboard",
+      icon: DashboardRoundedIcon,
+    },
+  ];
 }
