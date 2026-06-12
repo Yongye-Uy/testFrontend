@@ -1,5 +1,5 @@
 import type { User } from "@/types/user";
-import { isDirector, isSuperAdmin } from "./auth";
+import { isDirector, isLecturer, isSuperAdmin } from "./auth";
 
 export type SidebarItem = {
   label: string;
@@ -13,6 +13,7 @@ export function sidebarForUser(user: User | null): SidebarItem[] {
       { label: "Dashboard", href: "/dashboard" },
       { label: "Users", href: "/users" },
       { label: "Roles", href: "/roles" },
+      { label: "Assessments", href: "/assessments" },
       { label: "Permissions", href: "/permissions" },
     ];
   }
@@ -24,6 +25,13 @@ export function sidebarForUser(user: User | null): SidebarItem[] {
       { label: "Course Catalog", href: "/courses" },
       { label: "Batches", href: "/batches" },
       { label: "Users", href: "/users" },
+    ];
+  }
+
+  if (isLecturer(user)) {
+    return [
+      { label: "Dashboard", href: "/dashboard" },
+      { label: "Assessments", href: "/assessments" },
     ];
   }
 
