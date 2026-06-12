@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
+import KeyboardArrowRightRoundedIcon from "@mui/icons-material/KeyboardArrowRightRounded";
+import LinkRoundedIcon from "@mui/icons-material/LinkRounded";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import { PageHeader } from "@/components/layout/page-header";
 import { BackLink } from "@/components/shared/back-link";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -115,25 +123,14 @@ export function SemesterDetailPage({ id }: { id: string }) {
           { label: semester.data?.title ?? "Semester detail" },
         ]}
         actions={
-          <>
-            <Button
-              variant="secondary"
-              onClick={() => setEditOpen(true)}
-              disabled={!editable}
-            >
-              Edit
-            </Button>
-            <Button
-              variant="gold"
-              onClick={() => setAssignBatchOpen(true)}
-              disabled={archived}
-            >
-              Assign Batch
-            </Button>
-            <Button onClick={() => setClassOpen(true)} disabled={archived}>
-              Add class
-            </Button>
-          </>
+          <Button
+            variant="outline"
+            onClick={() => setEditOpen(true)}
+            disabled={!editable}
+            leftIcon={<EditOutlinedIcon fontSize="small" />}
+          >
+            Edit
+          </Button>
         }
       />
 
@@ -194,10 +191,23 @@ export function SemesterDetailPage({ id }: { id: string }) {
             <InfoMetric
               label="Academic year"
               value={semester.data.academic_year || "-"}
+              icon={<CalendarMonthOutlinedIcon fontSize="small" />}
             />
-            <InfoMetric label="Workflow" value="Manual archive" />
-            <InfoMetric label="Offerings" value={String(classCount)} />
-            <InfoMetric label="Batches" value={String(batchCount)} />
+            <InfoMetric
+              label="Workflow"
+              value="Manual archive"
+              icon={<EditOutlinedIcon fontSize="small" />}
+            />
+            <InfoMetric
+              label="Offerings"
+              value={String(classCount)}
+              icon={<MenuBookOutlinedIcon fontSize="small" />}
+            />
+            <InfoMetric
+              label="Batches"
+              value={String(batchCount)}
+              icon={<LinkRoundedIcon fontSize="small" />}
+            />
           </div>
           {archived && (
             <div className="border-t border-gold-200 bg-gold-50 px-5 py-3 text-sm text-ink-700">
@@ -224,6 +234,25 @@ export function SemesterDetailPage({ id }: { id: string }) {
           )}
 
           <div className="space-y-4">
+            <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
+              <div>
+                <h2 className="font-serif-display text-2xl font-semibold text-navy-900">
+                  Class offerings
+                </h2>
+                <p className="mt-1 text-sm text-ink-600">
+                  Classes assigned to this semester.
+                </p>
+              </div>
+              <Button
+                onClick={() => setClassOpen(true)}
+                disabled={archived}
+                leftIcon={<AddRoundedIcon fontSize="small" />}
+                className="self-start md:self-auto"
+              >
+                Add Class
+              </Button>
+            </div>
+
             {Object.entries(grouped).map(([program, rows]) => {
               const expanded = expandedPrograms[program] ?? false;
               return (
@@ -239,8 +268,12 @@ export function SemesterDetailPage({ id }: { id: string }) {
                     type="button"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-lg font-bold text-navy-700">
-                        {expanded ? "v" : ">"}
+                      <span className="text-navy-700">
+                        {expanded ? (
+                          <KeyboardArrowDownRoundedIcon fontSize="small" />
+                        ) : (
+                          <KeyboardArrowRightRoundedIcon fontSize="small" />
+                        )}
                       </span>
                       <h2 className="font-serif-display text-lg font-semibold text-navy-900">
                         {program}
@@ -300,7 +333,7 @@ export function SemesterDetailPage({ id }: { id: string }) {
           <Card className="mt-5 overflow-hidden">
             <div className="flex flex-col justify-between gap-3 border-b border-ink-100 bg-cream-100 px-5 py-4 md:flex-row md:items-center">
               <div>
-                <h2 className="font-semibold text-navy-900">
+                <h2 className="font-serif-display text-2xl font-semibold text-navy-900">
                   Assigned Batches
                 </h2>
                 <p className="mt-1 text-sm text-ink-600">
@@ -309,9 +342,10 @@ export function SemesterDetailPage({ id }: { id: string }) {
                 </p>
               </div>
               <Button
-                variant="gold"
+                variant="primary"
                 onClick={() => setAssignBatchOpen(true)}
                 disabled={archived}
+                leftIcon={<LinkRoundedIcon fontSize="small" />}
               >
                 Assign Batch
               </Button>
@@ -448,6 +482,7 @@ export function SemesterDetailPage({ id }: { id: string }) {
         batch={batchClassTarget}
         classes={classes.data?.classes ?? []}
         courses={courses.data?.courses ?? []}
+        programs={programs.data?.programs ?? []}
         onClose={() => setBatchClassTarget(null)}
         onDone={reloadAll}
       />
@@ -521,10 +556,19 @@ function ComingSoonPanel({
   );
 }
 
-function InfoMetric({ label, value }: { label: string; value: string }) {
+function InfoMetric({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon?: ReactNode;
+}) {
   return (
     <div>
-      <p className="text-[11px] font-bold uppercase tracking-wider text-ink-500">
+      <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-ink-500">
+        {icon}
         {label}
       </p>
       <p className="mt-1 text-sm font-semibold text-navy-900">{value}</p>
@@ -947,36 +991,94 @@ function AssignClassToBatchModal({
   batch,
   classes,
   courses,
+  programs,
   onClose,
   onDone,
 }: {
   batch: { id: string; name: string } | null;
   classes: ClassOffering[];
-  courses: { id: string; code: string; title: string }[];
+  courses: {
+    id: string;
+    code: string;
+    title: string;
+    program_id: string;
+  }[];
+  programs: { id: string; name: string }[];
   onClose: () => void;
   onDone: () => Promise<void>;
 }) {
   const [query, setQuery] = useState("");
+  const [programFilter, setProgramFilter] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [expandedPrograms, setExpandedPrograms] = useState<
+    Record<string, boolean>
+  >({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const batchDetail = useAsync(async () => {
+    if (!batch)
+      return {
+        class_ids: [] as string[],
+      };
+    return api.batches.getDetail(batch.id);
+  }, [batch?.id]);
 
   useEffect(() => {
     if (!batch) return;
     setQuery("");
+    setProgramFilter("");
     setSelectedIds([]);
+    setExpandedPrograms({});
     setError("");
   }, [batch]);
 
-  const availableClasses = useMemo(() => {
+  const existingClassIds = useMemo(
+    () => new Set(batchDetail.data?.class_ids ?? []),
+    [batchDetail.data?.class_ids],
+  );
+
+  const groupedClasses = useMemo(() => {
     const value = query.trim().toLowerCase();
-    return classes.filter((item) => {
-      if (!value) return true;
+    const filtered = classes
+      .filter((item) => {
+        const course = courses.find((row) => row.id === item.course_id);
+        if (!course) return false;
+        if (programFilter && course.program_id !== programFilter) return false;
+        if (!value) return true;
+        const program = programName(programs, course.program_id).toLowerCase();
+        return [
+          course.code,
+          course.title,
+          program,
+          item.lecturer_id ?? "",
+          item.status,
+        ].some((label) => label.toLowerCase().includes(value));
+      })
+      .sort((left, right) => {
+        const leftCourse = courses.find((row) => row.id === left.course_id);
+        const rightCourse = courses.find((row) => row.id === right.course_id);
+        return (leftCourse?.code ?? "").localeCompare(rightCourse?.code ?? "");
+      });
+
+    return filtered.reduce<Record<string, ClassOffering[]>>((acc, item) => {
       const course = courses.find((row) => row.id === item.course_id);
-      const label = course ? `${course.code} ${course.title}` : item.id;
-      return label.toLowerCase().includes(value);
+      const key = programName(programs, course?.program_id);
+      acc[key] = [...(acc[key] ?? []), item];
+      return acc;
+    }, {});
+  }, [classes, courses, programFilter, programs, query]);
+
+  useEffect(() => {
+    const keys = Object.keys(groupedClasses);
+    if (keys.length === 0) return;
+    setExpandedPrograms((current) => {
+      const next = { ...current };
+      keys.forEach((key, index) => {
+        if (next[key] === undefined) next[key] = index === 0;
+      });
+      return next;
     });
-  }, [classes, courses, query]);
+  }, [groupedClasses]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -1005,70 +1107,136 @@ function AssignClassToBatchModal({
       open={Boolean(batch)}
       onClose={onClose}
       title={batch ? `Add classes to ${batch.name}` : "Add classes to batch"}
-      description="Choose one or more of this semester's existing class offerings. The backend will attach the batch to each selected class."
+      description="Select class offerings from this semester to assign to the batch. Already-assigned classes stay visible and disabled."
       eyebrow="Director - Batch Class Assignment"
       size="lg"
     >
       <form className="space-y-4" onSubmit={submit}>
-        <Field label="Search class">
-          <input
-            className={inputClass}
-            placeholder="Search by course code or class title..."
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </Field>
+        <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+          <Field label="Search class">
+            <input
+              className={inputClass}
+              placeholder="Search by course code, class name, or department..."
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </Field>
+          <Field label="Department">
+            <select
+              className={inputClass}
+              value={programFilter}
+              onChange={(event) => setProgramFilter(event.target.value)}
+            >
+              <option value="">All departments</option>
+              {programs.map((program) => (
+                <option key={program.id} value={program.id}>
+                  {program.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
 
-        <div className="max-h-[360px] space-y-2 overflow-y-auto rounded-xl border border-ink-100 bg-white p-3">
-          {availableClasses.length === 0 ? (
+        <div className="max-h-[420px] space-y-2 overflow-y-auto rounded-xl border border-ink-100 bg-white p-2">
+          {batchDetail.loading ? (
+            <LoadingState label="Checking existing class assignments" />
+          ) : batchDetail.error ? (
+            <ErrorState message={batchDetail.error} />
+          ) : Object.keys(groupedClasses).length === 0 ? (
             <EmptyState
               title="No classes found"
-              description="Adjust the search to show semester classes."
+              description="Adjust the search or department filter to show semester classes."
             />
           ) : (
-            availableClasses.map((item) => {
-              const course = courses.find((row) => row.id === item.course_id);
-              const selected = selectedIds.includes(item.id);
+            Object.entries(groupedClasses).map(([program, rows]) => {
+              const expanded = expandedPrograms[program] ?? false;
               return (
-                <label
-                  className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition ${selected ? "border-navy-300 bg-navy-50" : "border-ink-100 bg-white hover:border-ink-200"}`}
-                  key={item.id}
+                <div
+                  className="overflow-hidden rounded-xl border border-ink-100"
+                  key={program}
                 >
-                  <input
-                    checked={selected}
-                    className="mt-1"
-                    onChange={(event) =>
-                      setSelectedIds((current) =>
-                        event.target.checked
-                          ? [...current, item.id]
-                          : current.filter((id) => id !== item.id),
-                      )
+                  <button
+                    className="flex w-full items-center justify-between bg-navy-50 px-4 py-3 text-left"
+                    onClick={() =>
+                      setExpandedPrograms((current) => ({
+                        ...current,
+                        [program]: !expanded,
+                      }))
                     }
-                    type="checkbox"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-md bg-navy-50 px-2 py-1 text-xs font-bold text-navy-800">
-                        {course?.code ?? "CLASS"}
+                    type="button"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-navy-700">
+                        {expanded ? "v" : ">"}
                       </span>
-                      <p className="font-semibold text-navy-900">
-                        {course?.title ?? `Class ${item.id}`}
-                      </p>
+                      <span className="font-semibold text-navy-900">
+                        {program}
+                      </span>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-ink-600 ring-1 ring-ink-200">
+                        {rows.length} class{rows.length === 1 ? "" : "es"}
+                      </span>
                     </div>
-                    <p className="mt-1 text-sm text-ink-500">
-                      Status: {item.status}
-                    </p>
-                  </div>
-                </label>
+                  </button>
+                  {expanded && (
+                    <div className="divide-y divide-ink-100">
+                      {rows.map((item) => {
+                        const course = courses.find(
+                          (row) => row.id === item.course_id,
+                        );
+                        const alreadyAdded = existingClassIds.has(item.id);
+                        const selected = selectedIds.includes(item.id);
+                        return (
+                          <label
+                            className={`flex items-start gap-3 px-4 py-3 ${alreadyAdded ? "bg-emerald-50/60" : "hover:bg-cream-50"}`}
+                            key={item.id}
+                          >
+                            <input
+                              checked={alreadyAdded || selected}
+                              className="mt-1"
+                              disabled={alreadyAdded}
+                              onChange={(event) =>
+                                setSelectedIds((current) =>
+                                  event.target.checked
+                                    ? [...current, item.id]
+                                    : current.filter((id) => id !== item.id),
+                                )
+                              }
+                              type="checkbox"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="rounded-md bg-navy-50 px-2 py-1 text-xs font-bold text-navy-800">
+                                  {course?.code ?? "CLASS"}
+                                </span>
+                                <p className="font-semibold text-navy-900">
+                                  {course?.title ?? `Class ${item.id}`}
+                                </p>
+                                {alreadyAdded && (
+                                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">
+                                    Already added
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-1 text-sm text-ink-500">
+                                Lecturer: {item.lecturer_id || "Unassigned"}
+                              </p>
+                            </div>
+                            <StatusBadge value={item.status} />
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               );
             })
           )}
         </div>
 
         <div className="rounded-lg bg-cream-100 px-3 py-2 text-xs text-ink-500 ring-1 ring-ink-200">
-          Active students in the batch should enroll immediately. Pending
-          students remain in the batch but should wait for activation before
-          class enrollment.
+          Selected classes will be attached to this batch. Classes already shown
+          as added remain visible so the Director can see existing coverage by
+          program.
         </div>
 
         {error && <ErrorState message={error} />}

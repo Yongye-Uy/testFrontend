@@ -22,6 +22,7 @@ export function SemestersPage() {
   const [tab, setTab] = useState<SemesterTab>("active");
   const [editing, setEditing] = useState<Semester | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Semester | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Semester | null>(null);
   const [actionError, setActionError] = useState("");
   const [publishingId, setPublishingId] = useState("");
   const semesters = useAsync(() => api.semesters.list(), []);
@@ -154,6 +155,11 @@ export function SemestersPage() {
                                 ? () => setEditing(semester)
                                 : undefined
                             }
+                            onDelete={
+                              semester.status === "draft"
+                                ? () => setDeleteTarget(semester)
+                                : undefined
+                            }
                             onArchive={() => setArchiveTarget(semester)}
                           />
                         )}
@@ -185,6 +191,16 @@ export function SemestersPage() {
           setArchiveTarget(null);
           await semesters.reload();
           setTab("archived");
+        }}
+      />
+      <ConfirmDeleteSemesterModal
+        open={Boolean(deleteTarget)}
+        semester={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onDeleted={async () => {
+          setDeleteTarget(null);
+          await semesters.reload();
+          setTab("draft");
         }}
       />
     </>
@@ -237,9 +253,11 @@ function SemesterTabs({
 
 function SemesterRowMenu({
   onEdit,
+  onDelete,
   onArchive,
 }: {
   onEdit?: () => void;
+  onDelete?: () => void;
   onArchive: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -288,6 +306,18 @@ function SemesterRowMenu({
               Edit
             </button>
           )}
+          {onDelete && (
+            <button
+              className="w-full px-3 py-2 text-left text-xs font-semibold text-rose-700 hover:bg-rose-50"
+              onClick={() => {
+                setOpen(false);
+                onDelete();
+              }}
+              type="button"
+            >
+              Delete
+            </button>
+          )}
           <button
             className="w-full px-3 py-2 text-left text-xs font-semibold text-rose-700 hover:bg-rose-50"
             onClick={() => {
@@ -301,6 +331,127 @@ function SemesterRowMenu({
         </div>
       )}
     </div>
+  );
+}
+
+export function ConfirmDeleteSemesterModal({
+  open,
+  semester,
+  onClose,
+  onDeleted,
+}: {
+  open: boolean;
+  semester: Semester | null;
+  onClose: () => void;
+  onDeleted: () => Promise<void>;
+}) {
+  const [confirmation, setConfirmation] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const dependencies = useAsync(async () => {
+    if (!semester) return { classCount: 0, batchCount: 0 };
+    const [classes, batches] = await Promise.all([
+      api.semesters.classes(semester.id),
+      api.semesters.batches(semester.id),
+    ]);
+    return {
+      classCount: classes.classes.length,
+      batchCount: batches.batches.length,
+    };
+  }, [semester?.id, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    setConfirmation("");
+    setError("");
+  }, [open, semester?.id]);
+
+  const canDelete =
+    Boolean(semester) &&
+    semester?.status === "draft" &&
+    confirmation === semester?.title &&
+    !dependencies.loading &&
+    !dependencies.error &&
+    (dependencies.data?.classCount ?? 0) === 0 &&
+    (dependencies.data?.batchCount ?? 0) === 0;
+
+  async function destroy() {
+    if (!semester || !canDelete) return;
+    setLoading(true);
+    setError("");
+    try {
+      await api.semesters.delete(semester.id);
+      await onDeleted();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete semester failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const classCount = dependencies.data?.classCount ?? 0;
+  const batchCount = dependencies.data?.batchCount ?? 0;
+  const blocked = classCount > 0 || batchCount > 0;
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Delete this draft semester?"
+      description="Only draft semesters with no attached classes or batches can be deleted."
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            disabled={!canDelete}
+            loading={loading}
+            onClick={destroy}
+          >
+            Delete semester
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <div className="rounded-2xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200">
+          <p className="font-semibold">
+            Draft-only delete with second confirmation.
+          </p>
+          <p className="mt-1">
+            This is allowed only before the semester is published and only when
+            no class offerings or assigned batches exist yet.
+          </p>
+        </div>
+        {dependencies.loading && (
+          <LoadingState label="Checking draft semester dependencies" />
+        )}
+        {dependencies.error && <ErrorState message={dependencies.error} />}
+        {!dependencies.loading && !dependencies.error && (
+          <div className="rounded-xl border border-ink-100 bg-cream-50 p-4 text-sm text-ink-700">
+            <p>Class offerings: {classCount}</p>
+            <p className="mt-1">Assigned batches: {batchCount}</p>
+            {blocked && (
+              <p className="mt-3 font-semibold text-rose-700">
+                This draft cannot be deleted until both counts are zero.
+              </p>
+            )}
+          </div>
+        )}
+        <Field
+          label={`Type "${semester?.title ?? "semester title"}" to confirm`}
+        >
+          <input
+            className={inputClass}
+            value={confirmation}
+            onChange={(event) => setConfirmation(event.target.value)}
+          />
+        </Field>
+        {error && <ErrorState message={error} />}
+      </div>
+    </Modal>
   );
 }
 

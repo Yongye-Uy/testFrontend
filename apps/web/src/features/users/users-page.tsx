@@ -78,23 +78,29 @@ export function UsersPage() {
     [],
   );
 
+  const filteredUsersByMode = useMemo(() => {
+    const rows = users.data?.users ?? [];
+    if (mode !== "director") return rows;
+    return rows.filter((user) => {
+      const role = primaryRole(user);
+      return role === "student" || role === "lecturer";
+    });
+  }, [mode, users.data?.users]);
+
   const counts = useMemo(
     () => ({
-      pending:
-        users.data?.users.filter((user) => user.status === "pending").length ??
-        0,
-      active:
-        users.data?.users.filter((user) => user.status === "active").length ??
-        0,
-      inactive:
-        users.data?.users.filter((user) => user.status === "inactive").length ??
-        0,
+      pending: filteredUsersByMode.filter((user) => user.status === "pending")
+        .length,
+      active: filteredUsersByMode.filter((user) => user.status === "active")
+        .length,
+      inactive: filteredUsersByMode.filter((user) => user.status === "inactive")
+        .length,
     }),
-    [users.data?.users],
+    [filteredUsersByMode],
   );
 
   const roleOptions = useMemo(() => {
-    const seen = new Set((users.data?.users ?? []).map(primaryRole));
+    const seen = new Set(filteredUsersByMode.map(primaryRole));
     return Array.from(seen).sort((left, right) => {
       const leftIndex = roleSortOrder.indexOf(left);
       const rightIndex = roleSortOrder.indexOf(right);
@@ -105,21 +111,21 @@ export function UsersPage() {
         );
       return left.localeCompare(right);
     });
-  }, [users.data?.users]);
+  }, [filteredUsersByMode]);
 
   const roleCounts = useMemo(() => {
     return roleOptions.reduce<Record<string, number>>((acc, role) => {
-      acc[role] = (users.data?.users ?? []).filter(
+      acc[role] = filteredUsersByMode.filter(
         (user) => user.status === statusTab && primaryRole(user) === role,
       ).length;
       return acc;
     }, {});
-  }, [roleOptions, statusTab, users.data?.users]);
+  }, [filteredUsersByMode, roleOptions, statusTab]);
 
   const visibleUsers = useMemo(() => {
     const query = directoryQuery.trim().toLowerCase();
 
-    return (users.data?.users ?? []).filter((user) => {
+    return filteredUsersByMode.filter((user) => {
       if (user.status !== statusTab) return false;
       if (roleFilter !== "all" && primaryRole(user) !== roleFilter)
         return false;
@@ -129,7 +135,7 @@ export function UsersPage() {
         .filter(Boolean)
         .some((value) => value.toLowerCase().includes(query));
     });
-  }, [directoryQuery, roleFilter, statusTab, users.data?.users]);
+  }, [directoryQuery, filteredUsersByMode, roleFilter, statusTab]);
 
   const assignableBatches = useMemo(
     () =>

@@ -39,6 +39,10 @@ type ValidationIssue = {
 
 type ValidRow = DraftRow & InviteUserEntry;
 
+function findDraftRow(rows: DraftRow[], id: string) {
+  return rows.find((row) => row.id === id);
+}
+
 export function BulkInviteWizardModal({
   open,
   onClose,
@@ -87,11 +91,6 @@ export function BulkInviteWizardModal({
   const validation = useMemo(
     () => validateRows(rows, selectedRole, selectedBatchId, existingEmails),
     [existingEmails, rows, selectedBatchId, selectedRole],
-  );
-  const draftValidation = useMemo(
-    () =>
-      validateRows(draftRows, selectedRole, selectedBatchId, existingEmails),
-    [draftRows, existingEmails, selectedBatchId, selectedRole],
   );
 
   function resetState() {
@@ -338,8 +337,8 @@ export function BulkInviteWizardModal({
                     File validated
                   </p>
                   <p className="text-sm text-ink-500">
-                    {uploadedFileName || "uploaded.csv"} · {draftRows.length}{" "}
-                    row{draftRows.length === 1 ? "" : "s"} scanned
+                    {uploadedFileName || "uploaded.csv"} · {rows.length} row
+                    {rows.length === 1 ? "" : "s"} scanned
                   </p>
                 </div>
                 <Button
@@ -357,19 +356,19 @@ export function BulkInviteWizardModal({
                 <MetricCard
                   tone="success"
                   label="Valid rows"
-                  value={String(draftValidation.validRows.length)}
+                  value={String(validation.validRows.length)}
                   helper="Ready to invite"
                 />
                 <MetricCard
                   tone="danger"
                   label="Errors"
-                  value={String(draftValidation.invalidRows.length)}
+                  value={String(validation.invalidRows.length)}
                   helper="Fix before invite"
                 />
                 <MetricCard
                   tone="neutral"
                   label="Total scanned"
-                  value={String(draftRows.length)}
+                  value={String(rows.length)}
                   helper="From your CSV"
                 />
               </div>
@@ -382,7 +381,7 @@ export function BulkInviteWizardModal({
               </div>
             )}
 
-            {draftValidation.invalidRows.length === 0 ? (
+            {validation.invalidRows.length === 0 ? (
               <Card padding="md">
                 <p className="font-semibold text-navy-900">
                   No validation errors
@@ -409,45 +408,50 @@ export function BulkInviteWizardModal({
                       </tr>
                     </thead>
                     <tbody>
-                      {draftValidation.invalidRows.map((row) => (
-                        <tr className="border-t border-rose-100" key={row.id}>
-                          <td className="px-4 py-3 text-sm text-ink-500">
-                            {row.rowNumber}
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              className={inputClass}
-                              value={row.full_name}
-                              onChange={(event) =>
-                                updateRow(row.id, {
-                                  full_name: event.target.value,
-                                })
-                              }
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              className={inputClass}
-                              value={row.email}
-                              onChange={(event) =>
-                                updateRow(row.id, { email: event.target.value })
-                              }
-                            />
-                          </td>
-                          <td className="px-4 py-3 text-sm text-rose-700">
-                            {row.issue}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              onClick={() => removeRow(row.id)}
-                            >
-                              Remove
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
+                      {validation.invalidRows.map((row) => {
+                        const draftRow = findDraftRow(draftRows, row.id) ?? row;
+                        return (
+                          <tr className="border-t border-rose-100" key={row.id}>
+                            <td className="px-4 py-3 text-sm text-ink-500">
+                              {row.rowNumber}
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                className={inputClass}
+                                value={draftRow.full_name}
+                                onChange={(event) =>
+                                  updateRow(row.id, {
+                                    full_name: event.target.value,
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                className={inputClass}
+                                value={draftRow.email}
+                                onChange={(event) =>
+                                  updateRow(row.id, {
+                                    email: event.target.value,
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="px-4 py-3 text-sm text-rose-700">
+                              {row.issue}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => removeRow(row.id)}
+                              >
+                                Remove
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -461,8 +465,8 @@ export function BulkInviteWizardModal({
             <Card padding="md">
               <p className="font-semibold text-navy-900">Preview & confirm</p>
               <p className="mt-1 text-sm text-ink-500">
-                {draftValidation.validRows.length} account
-                {draftValidation.validRows.length === 1 ? "" : "s"} will receive
+                {validation.validRows.length} account
+                {validation.validRows.length === 1 ? "" : "s"} will receive
                 pending invitations.
               </p>
             </Card>
@@ -474,7 +478,7 @@ export function BulkInviteWizardModal({
               </div>
             )}
 
-            {draftValidation.validRows.length === 0 ? (
+            {validation.validRows.length === 0 ? (
               <EmptyState
                 title="No valid rows to preview"
                 description="Go back to validation and fix or remove invalid entries first."
@@ -495,56 +499,59 @@ export function BulkInviteWizardModal({
                     </tr>
                   </thead>
                   <tbody>
-                    {draftValidation.validRows.map((row) => (
-                      <tr className="border-t border-ink-100" key={row.id}>
-                        <td className="px-4 py-3">
-                          <input
-                            className={inputClass}
-                            value={row.full_name}
-                            onChange={(event) =>
-                              updateRow(row.id, {
-                                full_name: event.target.value,
-                              })
-                            }
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <input
-                            className={inputClass}
-                            value={row.email}
-                            onChange={(event) =>
-                              updateRow(row.id, { email: event.target.value })
-                            }
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <StatusBadge
-                            value={row.role}
-                            label={prettyRoleValue(row.role)}
-                          />
-                        </td>
-                        {selectedRole === "student" && (
-                          <td className="px-4 py-3 text-sm text-ink-600">
-                            {batchName}
+                    {validation.validRows.map((row) => {
+                      const draftRow = findDraftRow(draftRows, row.id) ?? row;
+                      return (
+                        <tr className="border-t border-ink-100" key={row.id}>
+                          <td className="px-4 py-3">
+                            <input
+                              className={inputClass}
+                              value={draftRow.full_name}
+                              onChange={(event) =>
+                                updateRow(row.id, {
+                                  full_name: event.target.value,
+                                })
+                              }
+                            />
                           </td>
-                        )}
-                        <td className="px-4 py-3">
-                          <StatusBadge
-                            value="pending"
-                            label="Ready to invite"
-                          />
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() => removeRow(row.id)}
-                          >
-                            Remove
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                          <td className="px-4 py-3">
+                            <input
+                              className={inputClass}
+                              value={draftRow.email}
+                              onChange={(event) =>
+                                updateRow(row.id, { email: event.target.value })
+                              }
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <StatusBadge
+                              value={row.role}
+                              label={prettyRoleValue(row.role)}
+                            />
+                          </td>
+                          {selectedRole === "student" && (
+                            <td className="px-4 py-3 text-sm text-ink-600">
+                              {batchName}
+                            </td>
+                          )}
+                          <td className="px-4 py-3">
+                            <StatusBadge
+                              value="pending"
+                              label="Ready to invite"
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => removeRow(row.id)}
+                            >
+                              Remove
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -554,7 +561,7 @@ export function BulkInviteWizardModal({
 
         {step === 4 && (
           <Card className="py-16 text-center" padding="lg">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-3xl text-emerald-700">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-xl font-bold text-emerald-700">
               OK
             </div>
             <h3 className="mt-5 font-serif-display text-3xl font-semibold text-navy-900">
@@ -562,9 +569,7 @@ export function BulkInviteWizardModal({
             </h3>
             <p className="mx-auto mt-3 max-w-xl text-sm text-ink-600">
               {results.filter((item) => item.success).length} new account
-              {results.filter((item) => item.success).length === 1
-                ? ""
-                : "s"}{" "}
+              {results.filter((item) => item.success).length === 1 ? "" : "s"}{" "}
               have been marked pending. Real SMTP delivery and invite acceptance
               will connect later.
             </p>

@@ -150,11 +150,38 @@ function currentUserId() {
   return id;
 }
 
+function normalizeRoleValue(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replaceAll(" ", "_");
+}
+
+function normalizeStatusValue(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
+}
+
+function roleNameFromUnknown(value: unknown) {
+  if (typeof value === "string") return normalizeRoleValue(value);
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return normalizeRoleValue(
+      record.name ?? record.role ?? record.role_name ?? record.code,
+    );
+  }
+  return "";
+}
+
 function normalizeUser(raw: unknown): User {
   const value = (raw ?? {}) as Record<string, unknown>;
-  const roles = Array.isArray(value.roles) ? value.roles.map(String) : [];
+  const roles = Array.isArray(value.roles)
+    ? value.roles.map(roleNameFromUnknown).filter(Boolean)
+    : [];
   const primaryRole =
-    roles[0] ?? (typeof value.role === "string" ? value.role : "");
+    roles[0] ??
+    normalizeRoleValue(value.role ?? value.role_name ?? value.primary_role);
   const isSuperAdmin =
     Boolean(value.is_super_admin) ||
     roles.includes("super_admin") ||
@@ -164,7 +191,7 @@ function normalizeUser(raw: unknown): User {
     id: toStringId(value.id),
     email: String(value.email ?? ""),
     full_name: String(value.full_name ?? ""),
-    status: String(value.status ?? "active") as User["status"],
+    status: normalizeStatusValue(value.status ?? "active") as User["status"],
     auth_provider: String(value.auth_provider ?? "local"),
     google_subject:
       typeof value.google_subject === "string"
@@ -431,6 +458,28 @@ export const api = {
           limit: Number(params.get("limit") ?? 200),
         }),
       ),
+    listByRole: async (role: string, status?: string) => {
+      const candidates = Array.from(
+        new Set([
+          role,
+          role.toLowerCase(),
+          role.replaceAll(" ", "_").toLowerCase(),
+        ]),
+      );
+
+      for (const candidate of candidates) {
+        const params = new URLSearchParams([
+          ["limit", "500"],
+          ["offset", "0"],
+          ["role_filter", candidate],
+        ]);
+        if (status) params.set("status_filter", status);
+        const response = await api.users.list(params);
+        if (response.users.length > 0) return response;
+      }
+
+      return { users: [], total: 0, page: 1, limit: 500 };
+    },
     get: (id: string) =>
       request<{ user: unknown }>("user", `/users/${id}`).then((response) =>
         normalizeUser(response.user),
@@ -684,6 +733,10 @@ export const api = {
         }),
       }).then((response) => normalizeSemester(response.semester));
     },
+    delete: (id: string) =>
+      request<{ success?: boolean }>("course", `/semesters/${id}`, {
+        method: "DELETE",
+      }),
     changeStatus: (id: string, status: "draft" | "active" | "archived") => {
       if (status === "active") {
         return request<{ semester: unknown }>(
