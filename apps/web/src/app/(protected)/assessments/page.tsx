@@ -1,10 +1,5 @@
-import { PlaceholderPage } from "@/features/shared/placeholder-page";
+import { AssessmentsPage } from "@/features/assessments/assessments-page";
 
 export default function Page() {
-  return (
-    <PlaceholderPage
-      title="Assessments"
-      description="Assessment-service UI is intentionally not implemented yet."
-    />
-  );
+  return <AssessmentsPage />;
 }

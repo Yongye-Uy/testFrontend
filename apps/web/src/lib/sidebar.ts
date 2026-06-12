@@ -6,7 +6,7 @@ import PeopleAltRoundedIcon from "@mui/icons-material/PeopleAltRounded";
 import ShieldRoundedIcon from "@mui/icons-material/ShieldRounded";
 import type { SvgIconComponent } from "@mui/icons-material";
 import type { User } from "@/types/user";
-import { isDirector, isSuperAdmin } from "./auth";
+import { isDirector, isLecturer, isSuperAdmin } from "./auth";
 
 export type SidebarItem = {
   label: string;
