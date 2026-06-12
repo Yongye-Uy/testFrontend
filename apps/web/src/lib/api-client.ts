@@ -1,5 +1,14 @@
 import { getAccessToken, getStoredSession, storeSession } from "./auth";
 import type {
+  Assessment,
+  AssessmentOptions,
+  AssessmentOptionsInput,
+  AssessmentSubmission,
+  Question,
+  QuestionAnswer,
+  QuestionOption,
+} from "@/types/assessment";
+import type {
   Batch,
   BatchDetail,
   BatchStudent,
@@ -21,10 +30,17 @@ import type {
   UsersResponse,
 } from "@/types/user";
 
-type ServiceName = "user" | "course";
+type ServiceName = "user" | "course" | "assessment";
 
 const userBaseUrl = "/api";
 const courseBaseUrl = "/api/courses/v1";
+const assessmentBaseUrl = "/api/assessments";
+
+const serviceBaseUrls: Record<ServiceName, string> = {
+  user: userBaseUrl,
+  course: courseBaseUrl,
+  assessment: assessmentBaseUrl,
+};
 
 export class ApiError extends Error {
   status: number;
@@ -41,7 +57,7 @@ async function request<T>(
   init: RequestInit = {},
   authenticated = true,
 ): Promise<T> {
-  const baseUrl = service === "user" ? userBaseUrl : courseBaseUrl;
+  const baseUrl = serviceBaseUrls[service];
   const headers = new Headers(init.headers);
 
   if (!headers.has("Content-Type") && init.body) {
@@ -386,6 +402,86 @@ function normalizeInviteResult(raw: unknown) {
   };
 }
 
+function normalizeAssessmentOptions(raw: unknown): AssessmentOptions {
+  const value = (raw ?? {}) as Record<string, unknown>;
+  return {
+    id: toStringId(value.id),
+    assessment_id: toStringId(value.assessment_id),
+    require_pass_threshold: Boolean(value.require_pass_threshold),
+    pass_threshold_percent: toNumber(value.pass_threshold_percent) ?? 0,
+    require_time_limit: Boolean(value.require_time_limit),
+    time_limit_seconds: toNumber(value.time_limit_seconds),
+    random_questions_count: toNumber(value.random_questions_count),
+    shuffle_questions: Boolean(value.shuffle_questions),
+    shuffle_options: Boolean(value.shuffle_options),
+  };
+}
+
+function normalizeAssessment(raw: unknown): Assessment {
+  const value = (raw ?? {}) as Record<string, unknown>;
+  return {
+    id: toStringId(value.id),
+    title: String(value.title ?? ""),
+    description: String(value.description ?? ""),
+    status: String(value.status ?? "draft"),
+    question_count: toNumber(value.question_count) ?? 0,
+    options: value.options
+      ? normalizeAssessmentOptions(value.options)
+      : undefined,
+  };
+}
+
+function normalizeQuestion(raw: unknown): Question {
+  const value = (raw ?? {}) as Record<string, unknown>;
+  return {
+    id: toStringId(value.id),
+    question_text: String(value.question_text ?? ""),
+    type: String(value.type ?? "mcq_single"),
+  };
+}
+
+function normalizeQuestionOption(raw: unknown): QuestionOption {
+  const value = (raw ?? {}) as Record<string, unknown>;
+  return {
+    id: toStringId(value.id),
+    question_id: toStringId(value.question_id),
+    option_text: String(value.option_text ?? ""),
+    is_correct: Boolean(value.is_correct),
+    feedback: typeof value.feedback === "string" ? value.feedback : undefined,
+  };
+}
+
+function normalizeQuestionAnswer(raw: unknown): QuestionAnswer {
+  const value = (raw ?? {}) as Record<string, unknown>;
+  return {
+    id: toStringId(value.id),
+    question_id: toStringId(value.question_id),
+    accepted_answer: String(value.accepted_answer ?? ""),
+  };
+}
+
+function normalizeAssessmentSubmission(raw: unknown): AssessmentSubmission {
+  const value = (raw ?? {}) as Record<string, unknown>;
+  return {
+    id: toStringId(value.id),
+    lesson_item_id: toStringId(value.lesson_item_id),
+    class_id: toStringId(value.class_id),
+    student_id: toStringId(value.student_id),
+    status: String(value.status ?? "in_progress"),
+    started_at: toIsoString(value.started_at),
+    deadline_at:
+      typeof value.deadline_at === "string" && value.deadline_at
+        ? value.deadline_at
+        : undefined,
+    submitted_at:
+      typeof value.submitted_at === "string" && value.submitted_at
+        ? value.submitted_at
+        : undefined,
+    time_used_seconds: toNumber(value.time_used_seconds),
+    auto_submitted: Boolean(value.auto_submitted),
+  };
+}
+
 function withQuery(path: string, params?: URLSearchParams) {
   const query = params?.toString();
   return query ? `${path}?${query}` : path;
@@ -406,11 +502,10 @@ export const api = {
         ...response,
         user: normalizeUser(response.user),
       })),
-    me: async () => {
-      const session = getStoredSession();
-      if (!session?.user.id) throw new ApiError(401, "No active session");
-      return api.users.get(session.user.id);
-    },
+    me: () =>
+      request<{ user: unknown }>("user", "/users/me").then((response) =>
+        normalizeUser(response.user),
+      ),
     refresh: async (refreshToken: string) => {
       const response = await request<{
         access_token: string;
@@ -933,5 +1028,141 @@ export const api = {
         enrolled_count: 0,
       };
     },
+  },
+  assessments: {
+    list: () =>
+      request<{ assessments?: unknown[] }>(
+        "assessment",
+        "/assessments",
+      ).then((response) => ({
+        assessments: (response.assessments ?? []).map(normalizeAssessment),
+      })),
+    get: (id: string) =>
+      request<unknown>("assessment", `/assessments/${id}`).then(
+        normalizeAssessment,
+      ),
+    create: (body: {
+      title: string;
+      description?: string;
+      options?: AssessmentOptionsInput;
+    }) =>
+      request<unknown>("assessment", "/assessments", {
+        method: "POST",
+        ...jsonBody(body),
+      }).then(normalizeAssessment),
+    update: (id: string, body: { title: string; description: string }) =>
+      request<unknown>("assessment", `/assessments/${id}`, {
+        method: "PUT",
+        ...jsonBody(body),
+      }).then(normalizeAssessment),
+    remove: (id: string) =>
+      request<{ success: boolean }>("assessment", `/assessments/${id}`, {
+        method: "DELETE",
+      }),
+    publish: (id: string) =>
+      request<unknown>("assessment", `/assessments/${id}/publish`, {
+        method: "POST",
+      }).then(normalizeAssessment),
+    archive: (id: string) =>
+      request<unknown>("assessment", `/assessments/${id}/archive`, {
+        method: "POST",
+      }).then(normalizeAssessment),
+    getOptions: (id: string) =>
+      request<unknown>("assessment", `/assessments/${id}/options`).then(
+        normalizeAssessmentOptions,
+      ),
+    updateOptions: (id: string, body: AssessmentOptionsInput) =>
+      request<unknown>("assessment", `/assessments/${id}/options`, {
+        method: "PUT",
+        ...jsonBody(body),
+      }).then(normalizeAssessmentOptions),
+    questions: (id: string) =>
+      request<{ questions?: unknown[] }>(
+        "assessment",
+        `/assessments/${id}/questions`,
+      ).then((response) => ({
+        questions: (response.questions ?? []).map(normalizeQuestion),
+      })),
+    addQuestion: (id: string, questionId: string) =>
+      request<{ success: boolean }>(
+        "assessment",
+        `/assessments/${id}/questions`,
+        {
+          method: "POST",
+          ...jsonBody({ question_id: Number(questionId) }),
+        },
+      ),
+    removeQuestion: (id: string, questionId: string) =>
+      request<{ success: boolean }>(
+        "assessment",
+        `/assessments/${id}/questions/${questionId}`,
+        { method: "DELETE" },
+      ),
+    submissions: (id: string) =>
+      request<{ submissions?: unknown[] }>(
+        "assessment",
+        `/assessments/${id}/submissions`,
+      ).then((response) => ({
+        submissions: (response.submissions ?? []).map(
+          normalizeAssessmentSubmission,
+        ),
+      })),
+  },
+  questions: {
+    create: (body: { question_text: string; type: string }) =>
+      request<unknown>("assessment", "/questions", {
+        method: "POST",
+        ...jsonBody(body),
+      }).then(normalizeQuestion),
+    get: (id: string) =>
+      request<unknown>("assessment", `/questions/${id}`).then(
+        normalizeQuestion,
+      ),
+    update: (id: string, body: { question_text: string; type: string }) =>
+      request<unknown>("assessment", `/questions/${id}`, {
+        method: "PUT",
+        ...jsonBody(body),
+      }).then(normalizeQuestion),
+    remove: (id: string) =>
+      request<{ success: boolean }>("assessment", `/questions/${id}`, {
+        method: "DELETE",
+      }),
+    listOptions: (questionId: string) =>
+      request<{ options?: unknown[] }>(
+        "assessment",
+        `/questions/${questionId}/options`,
+      ).then((response) => ({
+        options: (response.options ?? []).map(normalizeQuestionOption),
+      })),
+    addOption: (
+      questionId: string,
+      body: { option_text: string; is_correct: boolean; feedback?: string },
+    ) =>
+      request<unknown>("assessment", `/questions/${questionId}/options`, {
+        method: "POST",
+        ...jsonBody(body),
+      }).then(normalizeQuestionOption),
+    removeOption: (optionId: string) =>
+      request<{ success: boolean }>("assessment", `/options/${optionId}`, {
+        method: "DELETE",
+      }),
+    listAnswers: (questionId: string) =>
+      request<{ answers?: unknown[] }>(
+        "assessment",
+        `/questions/${questionId}/answers`,
+      ).then((response) => ({
+        answers: (response.answers ?? []).map(normalizeQuestionAnswer),
+      })),
+    addAnswer: (questionId: string, accepted_answer: string) =>
+      request<unknown>("assessment", `/questions/${questionId}/answers`, {
+        method: "POST",
+        ...jsonBody({ accepted_answer }),
+      }).then(normalizeQuestionAnswer),
+    removeAnswer: (answerId: string) =>
+      request<{ success: boolean }>(
+        "assessment",
+        `/question-answers/${answerId}`,
+        { method: "DELETE" },
+      ),
   },
 };
