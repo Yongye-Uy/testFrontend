@@ -28,6 +28,10 @@ export type LoginResponse = {
   user: User;
 };
 
+export type CompleteInvitationResponse = LoginResponse & {
+  batch_id?: number | null;
+};
+
 export type UsersResponse = {
   users: User[];
   total: number;

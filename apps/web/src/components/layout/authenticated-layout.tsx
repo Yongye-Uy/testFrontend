@@ -10,6 +10,7 @@ import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { useAuth, AuthProvider } from "@/hooks/use-auth";
 import { useSidebar } from "@/hooks/use-sidebar";
 import { isDirector } from "@/lib/auth";
@@ -222,15 +223,7 @@ function SidebarLink({
 function ProfileMenu({ user, logout }: { user: User; logout: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const initials =
-    user.full_name
-      .split(/\s+/)
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase() ||
-    user.email[0]?.toUpperCase() ||
-    "U";
+  const displayName = user.full_name || user.email;
 
   useEffect(() => {
     function close(event: MouseEvent) {
@@ -248,9 +241,13 @@ function ProfileMenu({ user, logout }: { user: User; logout: () => void }) {
         onClick={() => setOpen((current) => !current)}
         type="button"
       >
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-800 text-xs font-bold text-cream-50 ring-2 ring-cream-50">
-          {initials}
-        </span>
+        <UserAvatar
+          className="h-8 w-8 rounded-full ring-2 ring-cream-50"
+          fallbackClassName="bg-navy-800 text-cream-50"
+          name={displayName}
+          photoUrl={user.photo_url}
+          textClassName="text-xs font-bold"
+        />
         <ExpandMoreRoundedIcon sx={{ fontSize: 18 }} className="text-ink-500" />
       </button>
 
@@ -258,9 +255,13 @@ function ProfileMenu({ user, logout }: { user: User; logout: () => void }) {
         <div className="absolute right-0 z-40 mt-2 w-64 overflow-hidden rounded-2xl bg-white shadow-pop ring-1 ring-ink-200">
           <div className="border-b border-ink-100 bg-cream-100 px-4 py-3">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-navy-800 text-sm font-bold text-cream-50">
-                {initials}
-              </span>
+              <UserAvatar
+                className="h-10 w-10 rounded-full"
+                fallbackClassName="bg-navy-800 text-cream-50"
+                name={displayName}
+                photoUrl={user.photo_url}
+                textClassName="text-sm font-bold"
+              />
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-navy-900">
                   {user.full_name}

@@ -3,6 +3,7 @@ import type { User } from "@/types/user";
 const ACCESS_TOKEN_KEY = "epplms.access_token";
 const REFRESH_TOKEN_KEY = "epplms.refresh_token";
 const USER_KEY = "epplms.user";
+const PENDING_AUTH_KEY = "epplms.pending_auth";
 
 export type StoredSession = {
   accessToken: string;
@@ -30,6 +31,15 @@ export function storeSession(session: StoredSession) {
   window.localStorage.setItem(USER_KEY, JSON.stringify(session.user));
 }
 
+export function storeTokens(tokens: {
+  accessToken: string;
+  refreshToken: string;
+}) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
+  window.localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
+}
+
 export function updateStoredUser(user: User) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(USER_KEY, JSON.stringify(user));
@@ -50,6 +60,31 @@ export function clearStoredSession() {
   window.localStorage.removeItem(ACCESS_TOKEN_KEY);
   window.localStorage.removeItem(REFRESH_TOKEN_KEY);
   window.localStorage.removeItem(USER_KEY);
+}
+
+export function storePendingAuth(tokens: {
+  accessToken: string;
+  refreshToken: string;
+}) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(PENDING_AUTH_KEY, JSON.stringify(tokens));
+}
+
+export function getPendingAuth() {
+  if (typeof window === "undefined") return null;
+  const raw = window.sessionStorage.getItem(PENDING_AUTH_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as { accessToken: string; refreshToken: string };
+  } catch {
+    clearPendingAuth();
+    return null;
+  }
+}
+
+export function clearPendingAuth() {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(PENDING_AUTH_KEY);
 }
 
 export function defaultRouteForUser(user: User) {

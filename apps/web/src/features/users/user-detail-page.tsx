@@ -45,7 +45,7 @@ function AdminUserDetail({ user }: { user: User }) {
     <Card className="overflow-hidden" padding="none">
       <header className="flex items-start justify-between gap-4 border-b border-ink-100 bg-cream-50 px-6 py-5">
         <div>
-          <h1 className="font-serif-display text-[1.5rem] font-semibold leading-8 text-navy-900">
+          <h1 className="font-serif-display text-[1.25rem] font-semibold leading-8 text-navy-900">
             {user.full_name}
           </h1>
           <p className="mt-1 text-sm text-ink-500">
@@ -124,7 +124,7 @@ function DirectorUserDetail({ user }: { user: User }) {
     <Card className="overflow-hidden" padding="none">
       <header className="flex items-start justify-between gap-4 border-b border-ink-100 bg-cream-50 px-6 py-5">
         <div>
-          <h1 className="font-serif-display text-[1.5rem] font-semibold leading-8 text-navy-900">
+          <h1 className="font-serif-display text-[1.25rem] font-semibold leading-8 text-navy-900">
             {user.full_name}
           </h1>
           <p className="mt-1 text-sm text-ink-500">
@@ -162,7 +162,7 @@ function DirectorUserDetail({ user }: { user: User }) {
         </div>
 
         <section className="mt-6">
-          <p className="flex items-center gap-2 text-[1rem] font-semibold text-navy-900">
+          <p className="flex items-center gap-2 text-[0.95rem] font-semibold text-navy-900">
             <span className="text-gold-600">o</span>
             {lecturerView
               ? "Current Teaching Assignments"
@@ -176,7 +176,7 @@ function DirectorUserDetail({ user }: { user: User }) {
         </section>
 
         <section className="mt-5">
-          <p className="flex items-center gap-2 text-[1rem] font-semibold text-navy-900">
+          <p className="flex items-center gap-2 text-[0.95rem] font-semibold text-navy-900">
             <span className="text-gold-600">o</span>
             {lecturerView
               ? "Past Teaching Assignments"
@@ -213,14 +213,15 @@ function DirectorUserDetail({ user }: { user: User }) {
 
 function SummaryBanner({ user }: { user: User }) {
   return (
-    <div className="rounded-2xl border border-ink-100 bg-white px-5 py-4 shadow-soft">
-      <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.1rem] bg-navy-800 text-base font-bold text-cream-50 shadow-soft">
+    <div className="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-soft">
+      <div className="h-14 bg-gradient-to-r from-navy-900 to-navy-700" />
+      <div className="flex items-start gap-4 px-5 pb-4">
+        <div className="-mt-7 flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.2rem] border-4 border-white bg-navy-800 text-base font-bold text-cream-50 shadow-soft">
           {initials(user.full_name || user.email)}
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 pt-3">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-serif-display text-[1rem] font-semibold text-navy-900">
+            <p className="font-serif-display text-[1.05rem] font-semibold text-navy-900">
               {user.full_name}
             </p>
             <StatusBadge value={user.status} />
@@ -247,7 +248,9 @@ function DetailField({
       <p className="text-[11px] font-bold uppercase tracking-wider text-ink-500">
         {label}
       </p>
-      <div className="mt-2 min-h-6 font-semibold text-navy-900">{value}</div>
+      <div className="mt-2 min-h-6 text-[0.95rem] font-semibold text-navy-900">
+        {value}
+      </div>
     </div>
   );
 }

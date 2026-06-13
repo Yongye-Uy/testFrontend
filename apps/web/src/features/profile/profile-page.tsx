@@ -6,19 +6,12 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { useAuth } from "@/hooks/use-auth";
 
 export function ProfilePage() {
   const { user } = useAuth();
   if (!user) return null;
-
-  const initials = user.full_name
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
   return (
     <>
@@ -42,10 +35,14 @@ export function ProfilePage() {
         <Card className="overflow-hidden p-0">
           <div className="h-28 bg-gradient-to-r from-navy-900 to-navy-700" />
           <div className="px-6 pb-6">
-            <div className="-mt-14 inline-flex h-24 w-24 items-center justify-center rounded-[1.6rem] border-4 border-white bg-navy-800 text-[1.7rem] font-bold text-cream-50 shadow-soft">
-              {initials}
-            </div>
-            <h2 className="mt-4 font-serif-display text-[1.5rem] font-semibold leading-8 text-navy-900">
+            <UserAvatar
+              className="-mt-14 h-24 w-24 rounded-[1.7rem] border-4 border-white shadow-soft"
+              fallbackClassName="bg-navy-800 text-cream-50"
+              name={user.full_name || user.email}
+              photoUrl={user.photo_url}
+              textClassName="text-[1.6rem] font-bold"
+            />
+            <h2 className="mt-4 font-serif-display text-[1.25rem] font-semibold leading-8 text-navy-900">
               {user.full_name}
             </h2>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -65,14 +62,14 @@ export function ProfilePage() {
               </div>
               <div className="flex items-center gap-3">
                 <BadgeOutlinedIcon fontSize="small" className="text-ink-400" />
-                <span>ID · {user.id}</span>
+                <span>ID - {user.id}</span>
               </div>
             </div>
           </div>
         </Card>
 
         <Card className="p-6">
-          <h2 className="font-serif-display text-[1.5rem] font-semibold leading-8 text-navy-900">
+          <h2 className="font-serif-display text-[1.25rem] font-semibold leading-8 text-navy-900">
             Account details
           </h2>
           <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -112,7 +109,7 @@ function ProfileField({
       <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-ink-500">
         {label}
       </p>
-      <div className="mt-2 text-[1rem] font-semibold text-navy-900">
+      <div className="mt-2 text-[0.95rem] font-semibold text-navy-900">
         {value}
       </div>
     </div>

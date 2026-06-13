@@ -171,7 +171,7 @@ export function SemesterDetailPage({ id }: { id: string }) {
                   </span>
                   <StatusBadge value={semester.data.status} />
                 </div>
-                <h2 className="mt-1 font-serif-display text-[1.5rem] font-semibold leading-8 text-cream-50">
+                <h2 className="mt-1 font-serif-display text-[1.35rem] font-semibold leading-8 text-cream-50">
                   {semester.data.title}
                 </h2>
                 <p className="mt-1 text-sm text-cream-100/80">
@@ -236,7 +236,7 @@ export function SemesterDetailPage({ id }: { id: string }) {
           <div className="space-y-4">
             <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
               <div>
-                <h2 className="font-serif-display text-[1.5rem] font-semibold leading-8 text-navy-900">
+                <h2 className="font-serif-display text-[1.25rem] font-semibold leading-8 text-navy-900">
                   Class offerings
                 </h2>
                 <p className="mt-1 text-sm text-ink-600">
@@ -313,7 +313,7 @@ export function SemesterDetailPage({ id }: { id: string }) {
                                 <td className="px-4 py-3 text-right">
                                   <Link
                                     href={`/classes/${item.id}`}
-                                    className="text-sm font-semibold text-navy-700"
+                                    className="inline-flex min-h-9 items-center rounded-lg px-3 py-2 text-[13px] font-medium text-navy-700 transition hover:bg-cream-100"
                                   >
                                     Open class
                                   </Link>
@@ -333,7 +333,7 @@ export function SemesterDetailPage({ id }: { id: string }) {
           <Card className="mt-5 overflow-hidden">
             <div className="flex flex-col justify-between gap-3 border-b border-ink-100 bg-cream-100 px-5 py-4 md:flex-row md:items-center">
               <div>
-                <h2 className="font-serif-display text-[1.5rem] font-semibold leading-8 text-navy-900">
+                <h2 className="font-serif-display text-[1.25rem] font-semibold leading-8 text-navy-900">
                   Assigned Batches
                 </h2>
                 <p className="mt-1 text-sm text-ink-600">
@@ -546,7 +546,7 @@ function ComingSoonPanel({
       <p className="text-[11px] font-bold uppercase tracking-wider text-gold-700">
         Upcoming soon
       </p>
-      <h2 className="mt-1 font-serif-display text-[1.5rem] font-semibold leading-8 text-navy-900">
+      <h2 className="mt-1 font-serif-display text-[1.25rem] font-semibold leading-8 text-navy-900">
         {title}
       </h2>
       <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-600">
@@ -954,7 +954,7 @@ function AssignBatchModal({
                     <p className="mt-1 text-sm text-ink-500">
                       {batch.program_name || "General batch"}
                       {batch.entry_year && batch.expected_graduation_year
-                        ? ` · ${batch.entry_year} - ${batch.expected_graduation_year}`
+                        ? ` - ${batch.entry_year} - ${batch.expected_graduation_year}`
                         : ""}
                     </p>
                   </div>

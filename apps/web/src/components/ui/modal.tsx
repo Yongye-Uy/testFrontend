@@ -36,7 +36,7 @@ export function Modal({
                 {eyebrow}
               </p>
             )}
-            <h2 className="font-serif-display text-[1.65rem] font-semibold tracking-tight text-navy-900">
+            <h2 className="font-serif-display text-[1.5rem] font-semibold leading-8 tracking-tight text-navy-900">
               {title}
             </h2>
             {description && (

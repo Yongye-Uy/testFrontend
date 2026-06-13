@@ -337,7 +337,7 @@ export function BulkInviteWizardModal({
                     File validated
                   </p>
                   <p className="text-sm text-ink-500">
-                    {uploadedFileName || "uploaded.csv"} · {rows.length} row
+                    {uploadedFileName || "uploaded.csv"} - {rows.length} row
                     {rows.length === 1 ? "" : "s"} scanned
                   </p>
                 </div>
@@ -564,7 +564,7 @@ export function BulkInviteWizardModal({
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-xl font-bold text-emerald-700">
               OK
             </div>
-            <h3 className="mt-5 font-serif-display text-[1.5rem] font-semibold leading-8 text-navy-900">
+            <h3 className="mt-5 font-serif-display text-[1.25rem] font-semibold leading-8 text-navy-900">
               Invitations sent!
             </h3>
             <p className="mx-auto mt-3 max-w-xl text-sm text-ink-600">
@@ -734,7 +734,7 @@ function MetricCard({
       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-ink-500">
         {label}
       </p>
-      <p className="mt-2 text-[1.65rem] font-semibold leading-8 text-navy-900">
+      <p className="mt-2 text-[1.4rem] font-semibold leading-8 text-navy-900">
         {value}
       </p>
       <p className="mt-2 text-sm text-ink-500">{helper}</p>
