@@ -96,7 +96,7 @@ export function RoleDetailPage({ id }: { id: string }) {
           <Card className="p-6">
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
               <div>
-                <h2 className="text-xl font-semibold text-navy-900">
+                <h2 className="text-[1.1rem] font-semibold leading-7 text-navy-900">
                   {role.name}
                 </h2>
                 <p className="mt-1 text-sm text-ink-600">
@@ -139,7 +139,7 @@ export function RoleDetailPage({ id }: { id: string }) {
                 <p className="text-[10px] font-bold uppercase tracking-wider text-gold-700">
                   Permissions
                 </p>
-                <h3 className="mt-1 text-lg font-semibold text-navy-900">
+                <h3 className="mt-1 text-[1rem] font-semibold text-navy-900">
                   Assign permissions to this role
                 </h3>
               </div>

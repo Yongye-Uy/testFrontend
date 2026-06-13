@@ -1,13 +1,19 @@
 "use client";
 
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
+import KeyboardDoubleArrowLeftRoundedIcon from "@mui/icons-material/KeyboardDoubleArrowLeftRounded";
+import KeyboardDoubleArrowRightRoundedIcon from "@mui/icons-material/KeyboardDoubleArrowRightRounded";
+import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
+import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { sidebarForUser, type SidebarItem } from "@/lib/sidebar";
 import { useAuth, AuthProvider } from "@/hooks/use-auth";
 import { useSidebar } from "@/hooks/use-sidebar";
-import { Button } from "@/components/ui/button";
 import { isDirector } from "@/lib/auth";
+import { sidebarForUser, type SidebarItem } from "@/lib/sidebar";
 import type { User } from "@/types/user";
 
 function LayoutInner({ children }: { children: React.ReactNode }) {
@@ -37,10 +43,11 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
       {mobileOpen && (
         <button
           aria-label="Close navigation"
-          className="fixed inset-0 z-30 bg-navy-900/40 lg:hidden"
+          className="fixed inset-0 z-30 bg-navy-900/40 backdrop-blur-sm lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
+
       <aside
         className={`${mobileOpen ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-ink-200 bg-white shadow-[2px_0_10px_-4px_rgba(15,44,92,0.08)] transition lg:static lg:translate-x-0 ${collapsed ? "lg:w-[72px]" : "lg:w-64"}`}
       >
@@ -58,6 +65,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
             )}
           </Link>
         </div>
+
         {!collapsed && (
           <div className="px-5 py-3">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">
@@ -69,6 +77,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
             </p>
           </div>
         )}
+
         <nav
           className={`flex-1 space-y-4 overflow-y-auto pb-4 ${collapsed ? "px-2 pt-3" : "px-3"}`}
         >
@@ -96,6 +105,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
             </div>
           ))}
         </nav>
+
         <div className="border-t border-ink-100 p-3">
           {!collapsed && (
             <div className="mb-2 flex items-center justify-between px-3 text-[10px] font-semibold uppercase tracking-wider text-ink-400">
@@ -104,38 +114,51 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
             </div>
           )}
           <button
-            className="hidden w-full rounded-lg px-2 py-1.5 text-xs font-semibold text-ink-500 hover:bg-cream-100 lg:block"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="hidden w-full items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-ink-500 transition hover:bg-cream-100 lg:flex"
             onClick={() => setCollapsed(!collapsed)}
+            type="button"
           >
-            {collapsed ? "Expand" : "Collapse"}
+            {collapsed ? (
+              <>
+                <KeyboardDoubleArrowRightRoundedIcon sx={{ fontSize: 16 }} />
+                Expand
+              </>
+            ) : (
+              <>
+                <KeyboardDoubleArrowLeftRoundedIcon sx={{ fontSize: 16 }} />
+                Collapse
+              </>
+            )}
           </button>
         </div>
       </aside>
+
       <div className="flex min-h-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 border-b border-ink-200 bg-cream-50/85 px-4 py-3 backdrop-blur-md lg:px-6">
           <div className="flex items-center gap-3">
-            <Button
-              variant="secondary"
-              className="lg:hidden"
+            <button
+              aria-label="Open navigation"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-700 transition hover:bg-cream-200 lg:hidden"
               onClick={() => setMobileOpen(true)}
+              type="button"
             >
-              Menu
-            </Button>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-navy-900">
-                {user.full_name}
-              </p>
-              <p className="truncate text-xs text-ink-500">{user.email}</p>
-            </div>
+              <MenuRoundedIcon fontSize="small" />
+            </button>
+
+            <div className="flex-1" />
+
             {director && (
-              <div className="hidden items-center gap-2 rounded-lg bg-cream-200/70 px-3 py-1.5 text-xs font-medium text-ink-700 ring-1 ring-ink-200 md:flex">
+              <div className="hidden items-center gap-2 rounded-xl bg-cream-200/70 px-3 py-1.5 text-xs font-medium text-ink-700 ring-1 ring-ink-200 md:flex">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 Director workspace
               </div>
             )}
+
             <ProfileMenu user={user} logout={logout} />
           </div>
         </header>
+
         <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4 lg:px-6">
           {children}
         </main>
@@ -168,6 +191,7 @@ function SidebarLink({
 }) {
   const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
   const Icon = item.icon;
+
   return (
     <Link
       href={item.href}
@@ -182,7 +206,7 @@ function SidebarLink({
         className={`flex min-w-0 items-center gap-3 ${collapsed ? "justify-center" : ""}`}
       >
         <span className="shrink-0 text-ink-500 group-hover:text-inherit">
-          {Icon ? <Icon fontSize="small" /> : null}
+          {Icon ? <Icon sx={{ fontSize: 20 }} /> : null}
         </span>
         <span className={collapsed ? "lg:hidden" : ""}>{item.label}</span>
       </span>
@@ -220,15 +244,16 @@ function ProfileMenu({ user, logout }: { user: User; logout: () => void }) {
   return (
     <div className="relative" ref={ref}>
       <button
-        className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 transition hover:bg-cream-200"
+        className="flex items-center gap-2 rounded-full py-1 pl-1 pr-1.5 transition hover:bg-cream-200"
         onClick={() => setOpen((current) => !current)}
         type="button"
       >
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-800 text-xs font-bold text-cream-50 ring-2 ring-cream-50">
           {initials}
         </span>
-        <span className="text-xs text-ink-500">v</span>
+        <ExpandMoreRoundedIcon sx={{ fontSize: 18 }} className="text-ink-500" />
       </button>
+
       {open && (
         <div className="absolute right-0 z-40 mt-2 w-64 overflow-hidden rounded-2xl bg-white shadow-pop ring-1 ring-ink-200">
           <div className="border-b border-ink-100 bg-cream-100 px-4 py-3">
@@ -249,24 +274,29 @@ function ProfileMenu({ user, logout }: { user: User; logout: () => void }) {
               {user.role}
             </span>
           </div>
+
           <div className="p-1">
             <MenuLink
               href="/profile"
+              icon={<PersonOutlineRoundedIcon sx={{ fontSize: 18 }} />}
               label="Profile"
               onDone={() => setOpen(false)}
             />
             <MenuLink
               href="/settings"
+              icon={<SettingsOutlinedIcon sx={{ fontSize: 18 }} />}
               label="Settings"
               onDone={() => setOpen(false)}
             />
           </div>
+
           <div className="border-t border-ink-100 p-1">
             <button
-              className="w-full rounded-lg px-2.5 py-2 text-left text-sm text-rose-700 transition hover:bg-rose-50"
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-rose-700 transition hover:bg-rose-50"
               onClick={logout}
               type="button"
             >
+              <LogoutRoundedIcon sx={{ fontSize: 18 }} />
               Sign out
             </button>
           </div>
@@ -279,18 +309,21 @@ function ProfileMenu({ user, logout }: { user: User; logout: () => void }) {
 function MenuLink({
   href,
   label,
+  icon,
   onDone,
 }: {
   href: string;
   label: string;
+  icon?: React.ReactNode;
   onDone: () => void;
 }) {
   return (
     <Link
       href={href}
       onClick={onDone}
-      className="block rounded-lg px-2.5 py-2 text-sm text-ink-700 transition hover:bg-cream-100"
+      className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-ink-700 transition hover:bg-cream-100"
     >
+      {icon}
       {label}
     </Link>
   );

@@ -114,10 +114,10 @@ export function BatchDetailPage({ id }: { id: string }) {
                   {batch.data.batch.name}
                 </span>
               </p>
-              <h1 className="mt-2 font-serif-display text-4xl font-semibold text-navy-900">
+              <h1 className="mt-2 font-serif-display text-[1.5rem] font-semibold leading-8 text-navy-900">
                 Manage Students ({batch.data.batch.name})
               </h1>
-              <p className="mt-2 text-lg text-ink-600">
+              <p className="mt-2 text-sm text-ink-600">
                 {batch.data.batch.program_name ?? "Program not assigned"}
               </p>
             </div>
@@ -146,7 +146,7 @@ export function BatchDetailPage({ id }: { id: string }) {
                     <StatusBadge value={batch.data.batch.status} />
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-3">
-                    <h2 className="font-serif-display text-3xl font-semibold">
+                    <h2 className="font-serif-display text-[1.5rem] font-semibold leading-8">
                       {batch.data.batch.name}
                     </h2>
                     <StatusBadge
@@ -166,7 +166,7 @@ export function BatchDetailPage({ id }: { id: string }) {
                   <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gold-300">
                     Batch progress
                   </p>
-                  <p className="mt-1 text-5xl font-semibold">
+                  <p className="mt-1 text-[2rem] font-semibold leading-none">
                     {progressPercent}%
                   </p>
                 </div>
@@ -239,7 +239,7 @@ export function BatchDetailPage({ id }: { id: string }) {
           <Card className="mt-5 overflow-hidden" padding="none">
             <div className="flex flex-col gap-3 border-b border-ink-100 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h2 className="text-2xl font-semibold text-navy-900">
+                <h2 className="text-[1.5rem] font-semibold leading-8 text-navy-900">
                   Enrolled students
                 </h2>
                 <p className="mt-1 text-sm text-ink-500">
@@ -358,7 +358,7 @@ export function BatchDetailPage({ id }: { id: string }) {
           </Card>
 
           <Card className="mt-5" padding="md">
-            <h2 className="text-lg font-semibold text-navy-900">
+            <h2 className="text-[1rem] font-semibold text-navy-900">
               Batch workflow notes
             </h2>
             <ul className="mt-3 space-y-2 text-sm text-ink-600">
@@ -586,7 +586,7 @@ function Metric({ label, value }: { label: string; value: string }) {
       <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-ink-500">
         {label}
       </p>
-      <p className="mt-2 text-2xl font-semibold text-navy-900">{value}</p>
+      <p className="mt-2 text-[1.25rem] font-semibold text-navy-900">{value}</p>
     </div>
   );
 }

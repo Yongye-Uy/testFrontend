@@ -1,16 +1,21 @@
 "use client";
 
+import ArrowOutwardRoundedIcon from "@mui/icons-material/ArrowOutwardRounded";
+import AutoStoriesOutlinedIcon from "@mui/icons-material/AutoStoriesOutlined";
+import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
+import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
+import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
+import { ErrorState } from "@/components/shared/error-state";
+import { LoadingState } from "@/components/shared/loading-state";
+import { CapabilityNotice } from "@/components/shared/capability-notice";
+import { useAsync } from "@/features/shared/use-async";
 import { useAuth } from "@/hooks/use-auth";
 import { isDirector, isSuperAdmin } from "@/lib/auth";
 import { api } from "@/lib/api-client";
 import { backendCapabilities } from "@/lib/backend-capabilities";
-import { useAsync } from "@/features/shared/use-async";
-import { LoadingState } from "@/components/shared/loading-state";
-import { ErrorState } from "@/components/shared/error-state";
-import { CapabilityNotice } from "@/components/shared/capability-notice";
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -51,36 +56,43 @@ export function DashboardPage() {
           description="Academic setup overview for course catalog, semesters, and master batches."
           breadcrumbs={[{ label: "Home" }, { label: "Dashboard" }]}
         />
+
         {loading && <LoadingState label="Loading director dashboard" />}
         {error && <ErrorState message={error} />}
+
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Metric
             title="Programs"
             value={programs.data?.programs.length ?? 0}
             href="/courses"
+            icon={<SchoolOutlinedIcon sx={{ fontSize: 20 }} />}
           />
           <Metric
             title="Catalog Courses"
             value={courses.data?.courses.length ?? 0}
             href="/courses"
+            icon={<AutoStoriesOutlinedIcon sx={{ fontSize: 20 }} />}
           />
           <Metric
             title="Active Semesters"
             value={activeSemesters}
             href="/semesters"
+            icon={<CalendarMonthOutlinedIcon sx={{ fontSize: 20 }} />}
           />
           <MetricLabel
             title="Batch Directory"
             value={backendCapabilities.batchDirectory ? "Live" : "Soon"}
             href="/batches"
+            icon={<GroupsOutlinedIcon sx={{ fontSize: 20 }} />}
           />
         </div>
+
         <div className="mt-5 grid gap-5 xl:grid-cols-3">
           <Card className="p-5 xl:col-span-2">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gold-700">
               Academic workflow
             </p>
-            <h2 className="mt-1 font-serif-display text-xl font-semibold text-navy-900">
+            <h2 className="mt-1 font-serif-display text-[1.1rem] font-semibold leading-7 text-navy-900">
               Director setup path
             </h2>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -101,19 +113,21 @@ export function DashboardPage() {
               />
             </div>
           </Card>
+
           <Card className="p-5">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gold-700">
               Current state
             </p>
-            <h2 className="mt-1 font-serif-display text-xl font-semibold text-navy-900">
+            <h2 className="mt-1 font-serif-display text-[1.1rem] font-semibold leading-7 text-navy-900">
               Preparation
             </h2>
-            <p className="mt-3 text-sm text-ink-600">
+            <p className="mt-3 text-sm leading-6 text-ink-600">
               {draftSemesters} draft semester{draftSemesters === 1 ? "" : "s"}{" "}
               waiting for setup or publication.
             </p>
           </Card>
         </div>
+
         {!backendCapabilities.batchDirectory && (
           <div className="mt-5">
             <CapabilityNotice
@@ -147,8 +161,16 @@ export function DashboardPage() {
         {cards.map(([title, href, description]) => (
           <Link key={href} href={href}>
             <Card className="h-full p-5 transition hover:-translate-y-0.5 hover:shadow-pop">
-              <h2 className="font-semibold text-navy-900">{title}</h2>
-              <p className="mt-2 text-sm text-ink-600">{description}</p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-semibold text-navy-900">{title}</h2>
+                  <p className="mt-2 text-sm text-ink-600">{description}</p>
+                </div>
+                <ArrowOutwardRoundedIcon
+                  sx={{ fontSize: 18 }}
+                  className="mt-0.5 text-ink-400"
+                />
+              </div>
             </Card>
           </Link>
         ))}
@@ -161,20 +183,29 @@ function Metric({
   title,
   value,
   href,
+  icon,
 }: {
   title: string;
   value: number;
   href: string;
+  icon?: React.ReactNode;
 }) {
   return (
     <Link href={href}>
       <Card hover className="p-5">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-ink-500">
-          {title}
-        </p>
-        <p className="mt-2 font-serif-display text-3xl font-semibold text-navy-900">
-          {value}
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-ink-500">
+              {title}
+            </p>
+            <p className="mt-2 font-serif-display text-[1.65rem] font-semibold leading-8 text-navy-900">
+              {value}
+            </p>
+          </div>
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-navy-50 text-navy-800 ring-1 ring-navy-100">
+            {icon}
+          </span>
+        </div>
       </Card>
     </Link>
   );
@@ -184,20 +215,29 @@ function MetricLabel({
   title,
   value,
   href,
+  icon,
 }: {
   title: string;
   value: string;
   href: string;
+  icon?: React.ReactNode;
 }) {
   return (
     <Link href={href}>
       <Card hover className="p-5">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-ink-500">
-          {title}
-        </p>
-        <p className="mt-2 font-serif-display text-3xl font-semibold text-navy-900">
-          {value}
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-ink-500">
+              {title}
+            </p>
+            <p className="mt-2 font-serif-display text-[1.65rem] font-semibold leading-8 text-navy-900">
+              {value}
+            </p>
+          </div>
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-navy-50 text-navy-800 ring-1 ring-navy-100">
+            {icon}
+          </span>
+        </div>
       </Card>
     </Link>
   );
@@ -217,8 +257,16 @@ function WorkflowCard({
       className="rounded-xl bg-cream-100 p-4 ring-1 ring-ink-100 transition hover:bg-navy-50"
       href={href}
     >
-      <p className="font-semibold text-navy-900">{title}</p>
-      <p className="mt-1 text-sm text-ink-600">{description}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-semibold text-navy-900">{title}</p>
+          <p className="mt-1 text-sm text-ink-600">{description}</p>
+        </div>
+        <ArrowOutwardRoundedIcon
+          sx={{ fontSize: 18 }}
+          className="mt-0.5 text-ink-400"
+        />
+      </div>
     </Link>
   );
 }

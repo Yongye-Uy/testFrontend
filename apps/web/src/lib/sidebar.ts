@@ -1,9 +1,9 @@
-import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
-import MenuBookRoundedIcon from "@mui/icons-material/MenuBookRounded";
-import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
-import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
-import PeopleAltRoundedIcon from "@mui/icons-material/PeopleAltRounded";
-import ShieldRoundedIcon from "@mui/icons-material/ShieldRounded";
+import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
+import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
+import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
+import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import type { SvgIconComponent } from "@mui/icons-material";
 import type { User } from "@/types/user";
 import { isDirector, isSuperAdmin } from "./auth";
@@ -21,17 +21,17 @@ export function sidebarForUser(user: User | null): SidebarItem[] {
       {
         label: "Dashboard",
         href: "/dashboard",
-        icon: DashboardRoundedIcon,
+        icon: DashboardOutlinedIcon,
       },
       {
         label: "Users",
         href: "/users",
-        icon: PeopleAltRoundedIcon,
+        icon: PeopleAltOutlinedIcon,
       },
       {
         label: "Roles & Permissions",
         href: "/roles",
-        icon: ShieldRoundedIcon,
+        icon: VerifiedUserOutlinedIcon,
       },
     ];
   }
@@ -41,27 +41,27 @@ export function sidebarForUser(user: User | null): SidebarItem[] {
       {
         label: "Dashboard",
         href: "/dashboard",
-        icon: DashboardRoundedIcon,
+        icon: DashboardOutlinedIcon,
       },
       {
         label: "Semesters",
         href: "/semesters",
-        icon: CalendarMonthRoundedIcon,
+        icon: CalendarMonthOutlinedIcon,
       },
       {
         label: "Course Catalog",
         href: "/courses",
-        icon: MenuBookRoundedIcon,
+        icon: MenuBookOutlinedIcon,
       },
       {
         label: "Batches",
         href: "/batches",
-        icon: GroupsRoundedIcon,
+        icon: GroupsOutlinedIcon,
       },
       {
         label: "Users",
         href: "/users",
-        icon: PeopleAltRoundedIcon,
+        icon: PeopleAltOutlinedIcon,
       },
     ];
   }
@@ -70,7 +70,7 @@ export function sidebarForUser(user: User | null): SidebarItem[] {
     {
       label: "Dashboard",
       href: "/dashboard",
-      icon: DashboardRoundedIcon,
+      icon: DashboardOutlinedIcon,
     },
   ];
 }

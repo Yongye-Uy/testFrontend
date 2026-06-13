@@ -50,7 +50,7 @@ export function CourseDetailPage({ id }: { id: string }) {
           <p className="text-xs font-bold uppercase tracking-wider text-gold-700">
             {course.data.code}
           </p>
-          <h2 className="mt-1 font-serif-display text-2xl font-semibold text-navy-900">
+          <h2 className="mt-1 font-serif-display text-[1.5rem] font-semibold leading-8 text-navy-900">
             {course.data.title}
           </h2>
           <p className="mt-2 text-sm text-ink-600">

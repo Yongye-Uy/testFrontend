@@ -56,6 +56,7 @@ export function defaultRouteForUser(user: User) {
   const roles = new Set([user.role, ...user.roles]);
   if (user.is_super_admin || roles.has("super_admin")) return "/users";
   if (roles.has("director")) return "/courses";
+  if (roles.has("lecturer")) return "/assessments";
   return "/dashboard";
 }
 
@@ -71,4 +72,9 @@ export function isSuperAdmin(user: User | null) {
 export function isDirector(user: User | null) {
   if (!user) return false;
   return user.role === "director" || user.roles.includes("director");
+}
+
+export function isLecturer(user: User | null) {
+  if (!user) return false;
+  return user.role === "lecturer" || user.roles.includes("lecturer");
 }

@@ -171,7 +171,7 @@ export function SemesterDetailPage({ id }: { id: string }) {
                   </span>
                   <StatusBadge value={semester.data.status} />
                 </div>
-                <h2 className="mt-1 font-serif-display text-2xl font-semibold text-cream-50">
+                <h2 className="mt-1 font-serif-display text-[1.5rem] font-semibold leading-8 text-cream-50">
                   {semester.data.title}
                 </h2>
                 <p className="mt-1 text-sm text-cream-100/80">
@@ -236,7 +236,7 @@ export function SemesterDetailPage({ id }: { id: string }) {
           <div className="space-y-4">
             <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
               <div>
-                <h2 className="font-serif-display text-2xl font-semibold text-navy-900">
+                <h2 className="font-serif-display text-[1.5rem] font-semibold leading-8 text-navy-900">
                   Class offerings
                 </h2>
                 <p className="mt-1 text-sm text-ink-600">
@@ -275,7 +275,7 @@ export function SemesterDetailPage({ id }: { id: string }) {
                           <KeyboardArrowRightRoundedIcon fontSize="small" />
                         )}
                       </span>
-                      <h2 className="font-serif-display text-lg font-semibold text-navy-900">
+                      <h2 className="font-serif-display text-[0.95rem] font-semibold text-navy-900">
                         {program}
                       </h2>
                       <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-ink-600 ring-1 ring-ink-200">
@@ -313,7 +313,7 @@ export function SemesterDetailPage({ id }: { id: string }) {
                                 <td className="px-4 py-3 text-right">
                                   <Link
                                     href={`/classes/${item.id}`}
-                                    className="font-semibold text-navy-700"
+                                    className="text-sm font-semibold text-navy-700"
                                   >
                                     Open class
                                   </Link>
@@ -333,7 +333,7 @@ export function SemesterDetailPage({ id }: { id: string }) {
           <Card className="mt-5 overflow-hidden">
             <div className="flex flex-col justify-between gap-3 border-b border-ink-100 bg-cream-100 px-5 py-4 md:flex-row md:items-center">
               <div>
-                <h2 className="font-serif-display text-2xl font-semibold text-navy-900">
+                <h2 className="font-serif-display text-[1.5rem] font-semibold leading-8 text-navy-900">
                   Assigned Batches
                 </h2>
                 <p className="mt-1 text-sm text-ink-600">
@@ -403,7 +403,7 @@ export function SemesterDetailPage({ id }: { id: string }) {
                             <div className="flex justify-end gap-2">
                               <Button
                                 variant="outline"
-                                size="sm"
+                                size="md"
                                 onClick={() =>
                                   setBatchClassTarget({
                                     id: batch.id,
@@ -416,7 +416,7 @@ export function SemesterDetailPage({ id }: { id: string }) {
                               </Button>
                               <Link
                                 href={`/batches/${batch.id}`}
-                                className="inline-flex min-h-9 items-center justify-center rounded-lg bg-white px-3.5 py-2 text-sm font-medium text-navy-800 ring-1 ring-ink-300 transition hover:bg-cream-100 hover:ring-ink-400"
+                                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-white px-4 py-2 text-[13px] font-medium text-navy-800 ring-1 ring-ink-300 transition hover:bg-cream-100 hover:ring-ink-400"
                               >
                                 Open batch
                               </Link>
@@ -546,7 +546,7 @@ function ComingSoonPanel({
       <p className="text-[11px] font-bold uppercase tracking-wider text-gold-700">
         Upcoming soon
       </p>
-      <h2 className="mt-1 font-serif-display text-2xl font-semibold text-navy-900">
+      <h2 className="mt-1 font-serif-display text-[1.5rem] font-semibold leading-8 text-navy-900">
         {title}
       </h2>
       <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-600">
