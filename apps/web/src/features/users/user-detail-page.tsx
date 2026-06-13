@@ -45,7 +45,7 @@ function AdminUserDetail({ user }: { user: User }) {
     <Card className="overflow-hidden" padding="none">
       <header className="flex items-start justify-between gap-4 border-b border-ink-100 bg-cream-50 px-6 py-5">
         <div>
-          <h1 className="font-serif-display text-3xl font-semibold text-navy-900">
+          <h1 className="font-serif-display text-[1.5rem] font-semibold leading-8 text-navy-900">
             {user.full_name}
           </h1>
           <p className="mt-1 text-sm text-ink-500">
@@ -124,7 +124,7 @@ function DirectorUserDetail({ user }: { user: User }) {
     <Card className="overflow-hidden" padding="none">
       <header className="flex items-start justify-between gap-4 border-b border-ink-100 bg-cream-50 px-6 py-5">
         <div>
-          <h1 className="font-serif-display text-3xl font-semibold text-navy-900">
+          <h1 className="font-serif-display text-[1.5rem] font-semibold leading-8 text-navy-900">
             {user.full_name}
           </h1>
           <p className="mt-1 text-sm text-ink-500">
@@ -162,7 +162,7 @@ function DirectorUserDetail({ user }: { user: User }) {
         </div>
 
         <section className="mt-6">
-          <p className="flex items-center gap-2 text-lg font-semibold text-navy-900">
+          <p className="flex items-center gap-2 text-[1rem] font-semibold text-navy-900">
             <span className="text-gold-600">o</span>
             {lecturerView
               ? "Current Teaching Assignments"
@@ -176,7 +176,7 @@ function DirectorUserDetail({ user }: { user: User }) {
         </section>
 
         <section className="mt-5">
-          <p className="flex items-center gap-2 text-lg font-semibold text-navy-900">
+          <p className="flex items-center gap-2 text-[1rem] font-semibold text-navy-900">
             <span className="text-gold-600">o</span>
             {lecturerView
               ? "Past Teaching Assignments"
@@ -215,12 +215,12 @@ function SummaryBanner({ user }: { user: User }) {
   return (
     <div className="rounded-2xl border border-ink-100 bg-white px-5 py-4 shadow-soft">
       <div className="flex items-start gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-navy-800 text-lg font-bold text-cream-50 shadow-soft">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.1rem] bg-navy-800 text-base font-bold text-cream-50 shadow-soft">
           {initials(user.full_name || user.email)}
         </div>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-serif-display text-xl font-semibold text-navy-900">
+            <p className="font-serif-display text-[1rem] font-semibold text-navy-900">
               {user.full_name}
             </p>
             <StatusBadge value={user.status} />

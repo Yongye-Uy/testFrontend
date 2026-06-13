@@ -178,7 +178,7 @@ export function ClassDetailPage({ id }: { id: string }) {
                     )}
                     <StatusBadge value={classItem.data.status} />
                   </div>
-                  <h2 className="mt-3 font-serif-display text-3xl font-semibold text-cream-50">
+                  <h2 className="mt-3 font-serif-display text-[1.5rem] font-semibold leading-8 text-cream-50">
                     {currentCourse?.title ?? `Class ${classItem.data.id}`}
                   </h2>
                   <p className="mt-3 max-w-2xl text-sm leading-relaxed text-cream-100/85">
@@ -189,7 +189,7 @@ export function ClassDetailPage({ id }: { id: string }) {
                   <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-gold-300">
                     Enrollment records
                   </p>
-                  <p className="mt-2 text-4xl font-semibold text-cream-50">
+                  <p className="mt-2 text-[1.65rem] font-semibold leading-8 text-cream-50">
                     {enrollmentCount}
                   </p>
                 </div>
@@ -396,7 +396,7 @@ export function ClassDetailPage({ id }: { id: string }) {
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold-700">
                 Upcoming soon
               </p>
-              <h2 className="mt-2 font-serif-display text-2xl font-semibold text-navy-900">
+              <h2 className="mt-2 font-serif-display text-[1.5rem] font-semibold leading-8 text-navy-900">
                 {tabTitle(activeTab)}
               </h2>
               <p className="mt-3 max-w-2xl text-sm text-ink-600">
@@ -442,7 +442,7 @@ function HeroMetric({
         <span className="text-ink-400">{icon}</span>
         {label}
       </p>
-      <p className="mt-2 text-3xl font-semibold text-navy-900">{value}</p>
+      <p className="mt-2 text-[1.65rem] font-semibold text-navy-900">{value}</p>
       <p className="mt-1 text-sm text-ink-500">{helper}</p>
     </div>
   );
@@ -474,7 +474,7 @@ function SummaryTile({
         {icon}
         {label}
       </p>
-      <p className="mt-2 text-3xl font-semibold">{value}</p>
+      <p className="mt-2 text-[1.65rem] font-semibold">{value}</p>
       <p className="mt-1 text-sm opacity-85">{helper}</p>
     </div>
   );

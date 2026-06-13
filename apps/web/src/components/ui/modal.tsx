@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "./button";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 
 export function Modal({
   open,
@@ -36,21 +36,23 @@ export function Modal({
                 {eyebrow}
               </p>
             )}
-            <h2 className="font-serif-display text-xl font-semibold tracking-tight text-navy-900">
+            <h2 className="font-serif-display text-[1.65rem] font-semibold tracking-tight text-navy-900">
               {title}
             </h2>
             {description && (
-              <p className="mt-1 text-xs text-ink-600">{description}</p>
+              <p className="mt-1 text-sm leading-6 text-ink-600">
+                {description}
+              </p>
             )}
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
+            aria-label="Close dialog"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-500 transition hover:bg-cream-200 hover:text-navy-900"
             onClick={onClose}
-            className="shrink-0"
+            type="button"
           >
-            Close
-          </Button>
+            <CloseRoundedIcon fontSize="small" />
+          </button>
         </div>
         <div className="max-h-[70vh] overflow-y-auto px-6 py-5">{children}</div>
         {footer && (

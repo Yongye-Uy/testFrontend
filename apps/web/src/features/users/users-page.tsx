@@ -505,7 +505,7 @@ function UserDirectory({
 
 function AvatarLabel({ user }: { user: User }) {
   return (
-    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-navy-800 text-lg font-bold text-cream-50 shadow-soft">
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.1rem] bg-navy-800 text-base font-bold text-cream-50 shadow-soft">
       {initials(user.full_name || user.email)}
     </div>
   );

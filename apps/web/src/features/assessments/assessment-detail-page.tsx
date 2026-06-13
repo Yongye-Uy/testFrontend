@@ -88,12 +88,20 @@ export function AssessmentDetailPage({ id }: { id: string }) {
                 Edit
               </Button>
               {status === "draft" && (
-                <Button variant="gold" loading={actionLoading} onClick={publish}>
+                <Button
+                  variant="gold"
+                  loading={actionLoading}
+                  onClick={publish}
+                >
                   Publish
                 </Button>
               )}
               {status === "published" && (
-                <Button variant="gold" loading={actionLoading} onClick={archive}>
+                <Button
+                  variant="gold"
+                  loading={actionLoading}
+                  onClick={archive}
+                >
                   Archive
                 </Button>
               )}
@@ -119,7 +127,7 @@ export function AssessmentDetailPage({ id }: { id: string }) {
               </span>
               <StatusBadge value={assessment.data.status} />
             </div>
-            <h2 className="mt-1 font-serif-display text-2xl font-semibold text-cream-50">
+            <h2 className="mt-1 font-serif-display text-[1.5rem] font-semibold leading-8 text-cream-50">
               {assessment.data.title}
             </h2>
             <p className="mt-1 text-sm text-cream-100/80">

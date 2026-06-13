@@ -13,7 +13,9 @@ import type {
   AssessmentOptionsInput,
 } from "@/types/assessment";
 
-function toFormState(options: AssessmentOptions | null): AssessmentOptionsInput {
+function toFormState(
+  options: AssessmentOptions | null,
+): AssessmentOptionsInput {
   return {
     require_pass_threshold: options?.require_pass_threshold ?? false,
     pass_threshold_percent: options?.pass_threshold_percent ?? 70,
@@ -41,12 +43,12 @@ export function AssessmentSettingsCard({
       <Card className="p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="font-serif-display text-xl font-semibold text-navy-900">
+            <h2 className="font-serif-display text-[1.1rem] font-semibold leading-7 text-navy-900">
               Assessment settings
             </h2>
             <p className="mt-1 text-sm text-ink-600">
-              Configure pass threshold, time limit, question randomization,
-              and shuffling.
+              Configure pass threshold, time limit, question randomization, and
+              shuffling.
             </p>
           </div>
           <Button

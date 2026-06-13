@@ -1,5 +1,11 @@
 "use client";
 
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import FilterListRoundedIcon from "@mui/icons-material/FilterListRounded";
+import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
+import KeyboardArrowRightRoundedIcon from "@mui/icons-material/KeyboardArrowRightRounded";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
@@ -61,24 +67,39 @@ export function CoursesPage() {
         description="Master course list grouped by program. Creating a catalog record does not create a class offering."
         breadcrumbs={[{ label: "Home" }, { label: "Course Catalog" }]}
         actions={
-          <Button onClick={() => setCourseOpen(true)}>Create course</Button>
+          <Button
+            leftIcon={<AddRoundedIcon fontSize="small" />}
+            onClick={() => setCourseOpen(true)}
+          >
+            Create course
+          </Button>
         }
       />
       <Card className="mb-4 p-4">
-        <Field label="Program filter">
-          <select
-            className={inputClass}
-            value={programId}
-            onChange={(event) => setProgramId(event.target.value)}
-          >
-            <option value="">All programs</option>
-            {(programs.data?.programs ?? []).map((program) => (
-              <option key={program.id} value={program.id}>
-                {program.name}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-navy-50 text-navy-700 ring-1 ring-navy-100">
+            <FilterListRoundedIcon fontSize="small" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <Field label="Program filter">
+              <div className="relative">
+                <SearchRoundedIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+                <select
+                  className={`${inputClass} pl-10`}
+                  value={programId}
+                  onChange={(event) => setProgramId(event.target.value)}
+                >
+                  <option value="">All programs</option>
+                  {(programs.data?.programs ?? []).map((program) => (
+                    <option key={program.id} value={program.id}>
+                      {program.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </Field>
+          </div>
+        </div>
       </Card>
       {(programs.loading || courses.loading) && (
         <LoadingState label="Loading course catalog" />
@@ -106,10 +127,15 @@ export function CoursesPage() {
               type="button"
             >
               <div className="flex items-center gap-3">
-                <span className="text-lg font-bold text-navy-700">
-                  {expandedPrograms[program] ? "v" : ">"}
+                <span className="text-navy-700">
+                  {expandedPrograms[program] ? (
+                    <KeyboardArrowDownRoundedIcon fontSize="small" />
+                  ) : (
+                    <KeyboardArrowRightRoundedIcon fontSize="small" />
+                  )}
                 </span>
-                <span className="font-serif-display text-lg font-semibold text-navy-900">
+                <span className="inline-flex items-center gap-2 font-serif-display text-[0.95rem] font-semibold text-navy-900">
+                  <MenuBookOutlinedIcon fontSize="small" />
                   {program}
                 </span>
                 <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-ink-600 ring-1 ring-ink-200">
