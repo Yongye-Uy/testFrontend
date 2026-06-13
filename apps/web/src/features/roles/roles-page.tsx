@@ -399,7 +399,7 @@ export function RolesPage() {
                   <p className="text-[10px] font-bold uppercase tracking-wider text-ink-400">
                     Edit role
                   </p>
-                  <h2 className="font-serif-display text-[1.5rem] font-semibold leading-8 text-navy-900">
+                  <h2 className="font-serif-display text-[1.25rem] font-semibold leading-8 text-navy-900">
                     {activeRole.name}
                   </h2>
                   <p className="mt-1 text-xs text-ink-500">

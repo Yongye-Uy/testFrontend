@@ -25,21 +25,24 @@ import type {
   BulkInviteResponse,
   InviteUserEntry,
   LoginResponse,
+  CompleteInvitationResponse,
   ResetPasswordResponse,
   User,
   UsersResponse,
 } from "@/types/user";
 
-type ServiceName = "user" | "course" | "assessment";
+type ServiceName = "user" | "course" | "assessment" | "integration";
 
 const userBaseUrl = "/api";
 const courseBaseUrl = "/api/courses/v1";
 const assessmentBaseUrl = "/api/assessments";
+const integrationBaseUrl = "/api";
 
 const serviceBaseUrls: Record<ServiceName, string> = {
   user: userBaseUrl,
   course: courseBaseUrl,
   assessment: assessmentBaseUrl,
+  integration: integrationBaseUrl,
 };
 
 export class ApiError extends Error {
@@ -535,6 +538,27 @@ export const api = {
         method: "POST",
         ...jsonBody({ refresh_token }),
       }),
+    completeInvitation: (
+      token: string,
+      password: string,
+      confirmPassword: string,
+    ) =>
+      request<CompleteInvitationResponse & { user: unknown }>(
+        "integration",
+        "/v1/integrations/invite/complete",
+        {
+          method: "POST",
+          ...jsonBody({
+            token,
+            password,
+            confirm_password: confirmPassword,
+          }),
+        },
+        false,
+      ).then((response) => ({
+        ...response,
+        user: normalizeUser(response.user),
+      })),
   },
   users: {
     list: (params = new URLSearchParams()) =>
@@ -1031,12 +1055,11 @@ export const api = {
   },
   assessments: {
     list: () =>
-      request<{ assessments?: unknown[] }>(
-        "assessment",
-        "/assessments",
-      ).then((response) => ({
-        assessments: (response.assessments ?? []).map(normalizeAssessment),
-      })),
+      request<{ assessments?: unknown[] }>("assessment", "/assessments").then(
+        (response) => ({
+          assessments: (response.assessments ?? []).map(normalizeAssessment),
+        }),
+      ),
     get: (id: string) =>
       request<unknown>("assessment", `/assessments/${id}`).then(
         normalizeAssessment,

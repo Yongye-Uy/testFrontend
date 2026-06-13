@@ -8,12 +8,44 @@ import { Button } from "@/components/ui/button";
 import { Field, inputClass } from "@/components/ui/field";
 import { useAuth, AuthProvider } from "@/hooks/use-auth";
 
+function GoogleLogo() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-4 w-4"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M21.805 12.23c0-.79-.064-1.366-.202-1.963H12.2v3.576h5.518c-.111.889-.709 2.228-2.036 3.128l-.019.12 2.86 2.17.198.019c1.82-1.643 2.884-4.059 2.884-7.05Z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12.2 21.75c2.704 0 4.974-.87 6.631-2.37l-3.159-2.309c-.846.576-1.982.98-3.472.98-2.65 0-4.9-1.708-5.7-4.07l-.116.01-2.973 2.254-.04.108c1.645 3.183 5.007 5.397 8.829 5.397Z"
+        fill="#34A853"
+      />
+      <path
+        d="M6.5 13.98a5.725 5.725 0 0 1-.335-1.926c0-.67.122-1.32.324-1.925l-.006-.129-3.012-2.29-.099.046A9.54 9.54 0 0 0 2.3 12.054c0 1.435.35 2.792.973 3.999l3.227-2.073Z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12.2 5.95c1.88 0 3.148.8 3.871 1.468l2.826-2.698C17.162 3.145 14.904 2.25 12.2 2.25c-3.822 0-7.184 2.214-8.828 5.397l3.117 2.372c.81-2.362 3.06-4.07 5.711-4.07Z"
+        fill="#EA4335"
+      />
+    </svg>
+  );
+}
+
 function LoginInner() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  function startGoogleSignIn() {
+    window.location.href = "/api/v1/integrations/google";
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -61,9 +93,8 @@ function LoginInner() {
               <span className="text-gold-400">clarity.</span>
             </h1>
             <p className="mt-6 text-[15px] leading-relaxed text-cream-200/85">
-              Local login connects the current frontend to the backend
-              foundation while invitation and Google flows are still being
-              phased in.
+              Sign in with a local password or continue with Google if your
+              account has already been invited and linked in EPPLMS.
             </p>
           </div>
 
@@ -98,7 +129,7 @@ function LoginInner() {
             Welcome back
           </h2>
           <p className="mt-1 text-sm text-ink-600">
-            Use your account email and local password to continue.
+            Use your account email and local password, or continue with Google.
           </p>
 
           <div className="mt-6 rounded-xl2 bg-white p-5 shadow-soft ring-1 ring-ink-100">
@@ -144,8 +175,32 @@ function LoginInner() {
                 Sign in
               </Button>
 
+              <div className="flex items-center gap-3 py-1">
+                <span className="h-px flex-1 bg-ink-200" />
+                <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-400">
+                  Or
+                </span>
+                <span className="h-px flex-1 bg-ink-200" />
+              </div>
+
+              <Button
+                className="w-full"
+                leftIcon={<GoogleLogo />}
+                onClick={startGoogleSignIn}
+                type="button"
+                variant="outline"
+              >
+                Continue with Google
+              </Button>
+
+              <p className="text-center text-[11px] leading-5 text-ink-500">
+                Invited users can finish account setup from their email link,
+                then optionally link Google for future sign-in.
+              </p>
+
               <p className="text-center text-[11px] text-ink-500">
-                Google OAuth is intentionally not implemented yet.
+                Missing your invite? Contact your EPPLMS administrator or
+                director.
               </p>
             </div>
           </div>

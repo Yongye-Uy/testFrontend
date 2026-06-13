@@ -1078,7 +1078,7 @@ export function BatchModal({
                   label={type === "generation" ? "Generation" : "General"}
                 />
               </div>
-              <h3 className="mt-2 text-[1.65rem] font-semibold text-navy-900">
+              <h3 className="mt-2 text-[1.25rem] font-semibold text-navy-900">
                 {form.name || "Batch preview"}
               </h3>
               <p className="mt-1 text-sm text-ink-600">

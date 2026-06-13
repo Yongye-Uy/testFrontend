@@ -1,5 +1,7 @@
 "use client";
 
+import PersonAddAlt1RoundedIcon from "@mui/icons-material/PersonAddAlt1Rounded";
+import UploadFileRoundedIcon from "@mui/icons-material/UploadFileRounded";
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
@@ -182,9 +184,11 @@ export function UsersPage() {
         actions={
           <>
             <Button variant="outline" onClick={() => setBulkInviteOpen(true)}>
+              <UploadFileRoundedIcon fontSize="small" />
               Bulk import
             </Button>
             <Button onClick={() => setSingleInviteOpen(true)}>
+              <PersonAddAlt1RoundedIcon fontSize="small" />
               Invite user
             </Button>
           </>
@@ -505,7 +509,7 @@ function UserDirectory({
 
 function AvatarLabel({ user }: { user: User }) {
   return (
-    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.1rem] bg-navy-800 text-base font-bold text-cream-50 shadow-soft">
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.3rem] border border-navy-700/10 bg-navy-800 text-base font-bold text-cream-50 shadow-soft">
       {initials(user.full_name || user.email)}
     </div>
   );

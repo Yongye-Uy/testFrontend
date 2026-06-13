@@ -134,7 +134,7 @@ export function CoursesPage() {
                     <KeyboardArrowRightRoundedIcon fontSize="small" />
                   )}
                 </span>
-                <span className="inline-flex items-center gap-2 font-serif-display text-[0.95rem] font-semibold text-navy-900">
+                <span className="inline-flex items-center gap-2 font-serif-display text-[0.9rem] font-semibold text-navy-900">
                   <MenuBookOutlinedIcon fontSize="small" />
                   {program}
                 </span>
@@ -169,7 +169,7 @@ export function CoursesPage() {
                         <td className="px-4 py-3 text-right">
                           <Link
                             href={`/courses/${course.id}`}
-                            className="font-semibold text-navy-700"
+                            className="inline-flex min-h-9 items-center rounded-lg px-3 py-2 text-[13px] font-medium text-navy-700 transition hover:bg-cream-100"
                           >
                             Open course
                           </Link>
@@ -283,7 +283,7 @@ export function CourseModal({
       open={open}
       onClose={onClose}
       title={initial ? "Edit course" : "Create course"}
-      eyebrow="Director · Course Catalog"
+      eyebrow="Director - Course Catalog"
     >
       <form onSubmit={submit} className="space-y-4">
         <Field label="Program/Department">

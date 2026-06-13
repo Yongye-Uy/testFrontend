@@ -114,7 +114,7 @@ export function BatchDetailPage({ id }: { id: string }) {
                   {batch.data.batch.name}
                 </span>
               </p>
-              <h1 className="mt-2 font-serif-display text-[1.5rem] font-semibold leading-8 text-navy-900">
+              <h1 className="mt-2 font-serif-display text-[1.25rem] font-semibold leading-8 text-navy-900">
                 Manage Students ({batch.data.batch.name})
               </h1>
               <p className="mt-2 text-sm text-ink-600">
@@ -146,7 +146,7 @@ export function BatchDetailPage({ id }: { id: string }) {
                     <StatusBadge value={batch.data.batch.status} />
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-3">
-                    <h2 className="font-serif-display text-[1.5rem] font-semibold leading-8">
+                    <h2 className="font-serif-display text-[1.35rem] font-semibold leading-8">
                       {batch.data.batch.name}
                     </h2>
                     <StatusBadge
@@ -166,7 +166,7 @@ export function BatchDetailPage({ id }: { id: string }) {
                   <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gold-300">
                     Batch progress
                   </p>
-                  <p className="mt-1 text-[2rem] font-semibold leading-none">
+                  <p className="mt-1 text-[1.6rem] font-semibold leading-none">
                     {progressPercent}%
                   </p>
                 </div>
@@ -239,7 +239,7 @@ export function BatchDetailPage({ id }: { id: string }) {
           <Card className="mt-5 overflow-hidden" padding="none">
             <div className="flex flex-col gap-3 border-b border-ink-100 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h2 className="text-[1.5rem] font-semibold leading-8 text-navy-900">
+                <h2 className="text-[1.25rem] font-semibold leading-8 text-navy-900">
                   Enrolled students
                 </h2>
                 <p className="mt-1 text-sm text-ink-500">
@@ -400,7 +400,7 @@ export function BatchDetailPage({ id }: { id: string }) {
         existingUsers={roster.data?.students ?? []}
         title={
           batch.data
-            ? `Onboard students · ${batch.data.batch.name}`
+            ? `Onboard students - ${batch.data.batch.name}`
             : "Onboard students"
         }
         description="Upload a student CSV, validate the rows, preview the invite list, and then create pending invitations attached to this batch."

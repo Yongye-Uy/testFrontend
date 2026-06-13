@@ -11,10 +11,12 @@ import {
 } from "react";
 import { api } from "@/lib/api-client";
 import {
+  clearPendingAuth,
   clearStoredSession,
   defaultRouteForUser,
   getRefreshToken,
   getStoredSession,
+  storeTokens,
   storeSession,
   updateStoredUser,
 } from "@/lib/auth";
@@ -24,6 +26,7 @@ type AuthContextValue = {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  completeSession: (accessToken: string, refreshToken: string) => Promise<void>;
   refreshMe: () => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -76,6 +79,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [router],
   );
 
+  const completeSession = useCallback(
+    async (accessToken: string, refreshToken: string) => {
+      clearStoredSession();
+      clearPendingAuth();
+      storeTokens({ accessToken, refreshToken });
+
+      try {
+        const nextUser = await api.auth.me();
+        storeSession({
+          accessToken,
+          refreshToken,
+          user: nextUser,
+        });
+        setUser(nextUser);
+        router.replace(defaultRouteForUser(nextUser));
+      } catch (error) {
+        clearStoredSession();
+        throw error;
+      }
+    },
+    [router],
+  );
+
   const logout = useCallback(async () => {
     const refreshToken = getRefreshToken();
     if (refreshToken) {
@@ -87,8 +113,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   const value = useMemo(
-    () => ({ user, loading, login, refreshMe, logout }),
-    [user, loading, login, refreshMe, logout],
+    () => ({ user, loading, login, completeSession, refreshMe, logout }),
+    [user, loading, login, completeSession, refreshMe, logout],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
