@@ -79,9 +79,7 @@ export function QuestionsPanel({ assessmentId }: { assessmentId: string }) {
               type="button"
               onClick={() => setSelectedId(question.id)}
               className={`block w-full px-4 py-3 text-left transition ${
-                selectedId === question.id
-                  ? "bg-navy-50"
-                  : "hover:bg-cream-100"
+                selectedId === question.id ? "bg-navy-50" : "hover:bg-cream-100"
               }`}
             >
               <div className="flex items-center justify-between gap-2">

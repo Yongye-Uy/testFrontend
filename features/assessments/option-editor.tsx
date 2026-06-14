@@ -205,12 +205,7 @@ export function OptionEditor({
       </div>
       {error && <ErrorState message={error} />}
       <div className="flex justify-end">
-        <Button
-          loading={saving}
-          type="button"
-          onClick={save}
-          disabled={!dirty}
-        >
+        <Button loading={saving} type="button" onClick={save} disabled={!dirty}>
           Save options
         </Button>
       </div>
