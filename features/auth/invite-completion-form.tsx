@@ -103,7 +103,7 @@ function InviteCompletionInner() {
     <main className="flex min-h-screen items-center justify-center bg-cream-100 p-6">
       <div className="w-full max-w-lg rounded-xl2 bg-white p-7 shadow-soft ring-1 ring-ink-100">
         <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-50 text-gold-700">
-          <MarkEmailReadRoundedIcon sx={{ fontSize: 26 }} />
+          <MarkEmailReadRoundedIcon style={{ fontSize: 26 }} />
         </div>
 
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold-700">
@@ -182,7 +182,7 @@ function InviteCompletionInner() {
             <div className="grid gap-3 md:grid-cols-2">
               <Button
                 className="w-full"
-                leftIcon={<LaunchRoundedIcon sx={{ fontSize: 16 }} />}
+                leftIcon={<LaunchRoundedIcon style={{ fontSize: 16 }} />}
                 onClick={continueWithGoogle}
                 type="button"
                 variant="outline"

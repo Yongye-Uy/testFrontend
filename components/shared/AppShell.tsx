@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React, { Fragment, useState } from "react";
 import { motion } from "framer-motion";
 import { Sidebar } from "./Sidebar";
@@ -68,15 +69,28 @@ export function AppShell({
                     {breadcrumbs.map((b, i) => (
                       <Fragment key={i}>
                         {i > 0 && <span className="text-ink-300">/</span>}
-                        <span
-                          className={
-                            i === breadcrumbs.length - 1
-                              ? "text-navy-700 font-semibold"
-                              : ""
-                          }
-                        >
-                          {b.label}
-                        </span>
+                        {b.to || b.label === "Home" ? (
+                          <Link
+                            href={b.to ?? "/dashboard"}
+                            className={
+                              i === breadcrumbs.length - 1
+                                ? "text-navy-700 font-semibold"
+                                : "transition hover:text-navy-700"
+                            }
+                          >
+                            {b.label}
+                          </Link>
+                        ) : (
+                          <span
+                            className={
+                              i === breadcrumbs.length - 1
+                                ? "text-navy-700 font-semibold"
+                                : ""
+                            }
+                          >
+                            {b.label}
+                          </span>
+                        )}
                       </Fragment>
                     ))}
                   </nav>

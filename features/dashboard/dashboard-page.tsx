@@ -65,25 +65,25 @@ export function DashboardPage() {
             title="Programs"
             value={programs.data?.programs.length ?? 0}
             href="/courses"
-            icon={<SchoolOutlinedIcon sx={{ fontSize: 20 }} />}
+            icon={<SchoolOutlinedIcon style={{ fontSize: 20 }} />}
           />
           <Metric
             title="Catalog Courses"
             value={courses.data?.courses.length ?? 0}
             href="/courses"
-            icon={<AutoStoriesOutlinedIcon sx={{ fontSize: 20 }} />}
+            icon={<AutoStoriesOutlinedIcon style={{ fontSize: 20 }} />}
           />
           <Metric
             title="Active Semesters"
             value={activeSemesters}
             href="/semesters"
-            icon={<CalendarMonthOutlinedIcon sx={{ fontSize: 20 }} />}
+            icon={<CalendarMonthOutlinedIcon style={{ fontSize: 20 }} />}
           />
           <MetricLabel
             title="Batch Directory"
             value={backendCapabilities.batchDirectory ? "Live" : "Soon"}
             href="/batches"
-            icon={<GroupsOutlinedIcon sx={{ fontSize: 20 }} />}
+            icon={<GroupsOutlinedIcon style={{ fontSize: 20 }} />}
           />
         </div>
 
@@ -167,7 +167,7 @@ export function DashboardPage() {
                   <p className="mt-2 text-sm text-ink-600">{description}</p>
                 </div>
                 <ArrowOutwardRoundedIcon
-                  sx={{ fontSize: 18 }}
+                  style={{ fontSize: 18 }}
                   className="mt-0.5 text-ink-400"
                 />
               </div>
@@ -263,7 +263,7 @@ function WorkflowCard({
           <p className="mt-1 text-sm text-ink-600">{description}</p>
         </div>
         <ArrowOutwardRoundedIcon
-          sx={{ fontSize: 18 }}
+          style={{ fontSize: 18 }}
           className="mt-0.5 text-ink-400"
         />
       </div>

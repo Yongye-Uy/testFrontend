@@ -20,6 +20,15 @@ type StudentFilter = "all" | "active" | "pending" | "inactive";
 export function BatchDetailPage({ id }: { id: string }) {
   const [studentsOpen, setStudentsOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [detailUserId, setDetailUserId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
+  const [removeTarget, setRemoveTarget] = useState<{
+    id: string;
+    full_name: string;
+  } | null>(null);
+  const [resendingStudentId, setResendingStudentId] = useState<string | null>(
+    null,
+  );
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<StudentFilter>("all");
   const batch = useAsync(() => api.batches.getDetail(id), [id]);
@@ -106,6 +115,13 @@ export function BatchDetailPage({ id }: { id: string }) {
   );
   const progressPercent =
     enrolledCount === 0 ? 0 : Math.round((counts.active / enrolledCount) * 100);
+  const canRemoveStudents =
+    (batch.data?.class_count ?? linkedClasses.length) === 0 &&
+    batch.data?.batch.status !== "archived";
+  const showRosterWarning =
+    Boolean(roster.error) &&
+    (roster.data?.students?.length ?? 0) === 0 &&
+    fallbackStudents.length === 0;
 
   async function reloadAll() {
     await Promise.all([
@@ -113,6 +129,21 @@ export function BatchDetailPage({ id }: { id: string }) {
       roster.reload(),
       studentDirectory.reload(),
     ]);
+  }
+
+  async function resendInvitation(studentId: string) {
+    setResendingStudentId(studentId);
+    setActionError("");
+    try {
+      await api.users.resendInvitation(studentId);
+      await reloadAll();
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Resend invitation failed",
+      );
+    } finally {
+      setResendingStudentId(null);
+    }
   }
 
   function exportRoster() {
@@ -158,7 +189,20 @@ export function BatchDetailPage({ id }: { id: string }) {
           <div className="mb-5 flex flex-col gap-4 border-b border-gold-200 pb-5 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-sm text-ink-500">
-                Home / Batches /{" "}
+                <Link
+                  href="/dashboard"
+                  className="transition hover:text-navy-700"
+                >
+                  Home
+                </Link>{" "}
+                /{" "}
+                <Link
+                  href="/batches"
+                  className="transition hover:text-navy-700"
+                >
+                  Batches
+                </Link>{" "}
+                /{" "}
                 <span className="font-semibold text-navy-800">
                   {batch.data.batch.name}
                 </span>
@@ -250,7 +294,7 @@ export function BatchDetailPage({ id }: { id: string }) {
 
           <Card className="mt-5" padding="md">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+              <div className="w-full max-w-2xl">
                 <Field label="Search students">
                   <input
                     className={inputClass}
@@ -308,7 +352,13 @@ export function BatchDetailPage({ id }: { id: string }) {
               </div>
             </div>
 
-            {roster.error && (
+            {actionError && (
+              <div className="border-b border-ink-100 px-6 py-4">
+                <ErrorState message={actionError} />
+              </div>
+            )}
+
+            {showRosterWarning && (
               <div className="border-b border-ink-100 px-6 py-4">
                 <ErrorState message="Student roster refresh is failing in the backend right now. We are showing fallback batch membership from batch detail data, so newly added students may already be saved even if this page still warns." />
               </div>
@@ -323,7 +373,7 @@ export function BatchDetailPage({ id }: { id: string }) {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full text-left">
+                <table className="w-full min-w-[700px] text-left">
                   <thead className="bg-cream-100">
                     <tr className="text-[11px] font-bold uppercase tracking-[0.18em] text-ink-500">
                       <th className="px-5 py-4">Student</th>
@@ -396,12 +446,43 @@ export function BatchDetailPage({ id }: { id: string }) {
                             <StatusBadge value={student.status} />
                           </td>
                           <td className="px-5 py-4 text-right">
-                            <Link
-                              href={`/users/${student.id}`}
-                              className="inline-flex min-h-9 items-center justify-center rounded-lg bg-white px-3.5 py-2 text-sm font-medium text-navy-800 ring-1 ring-ink-300 transition hover:bg-cream-100 hover:ring-ink-400"
-                            >
-                              View user
-                            </Link>
+                            <div className="flex justify-end gap-2">
+                              {student.status === "pending" && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  loading={resendingStudentId === student.id}
+                                  onClick={() =>
+                                    void resendInvitation(student.id)
+                                  }
+                                >
+                                  Resend invite
+                                </Button>
+                              )}
+                              {canRemoveStudents && (
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  onClick={() =>
+                                    setRemoveTarget({
+                                      id: student.id,
+                                      full_name: student.full_name,
+                                    })
+                                  }
+                                >
+                                  Remove
+                                </Button>
+                              )}
+                              <button
+                                onClick={() => {
+                                  setDetailUserId(student.id);
+                                }}
+                                className="inline-flex min-h-9 items-center justify-center rounded-lg bg-white px-3.5 py-2 text-sm font-medium text-navy-800 ring-1 ring-ink-300 transition hover:bg-cream-100 hover:ring-ink-400"
+                                type="button"
+                              >
+                                View user
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -418,18 +499,22 @@ export function BatchDetailPage({ id }: { id: string }) {
             </h2>
             <ul className="mt-3 space-y-2 text-sm text-ink-600">
               <li>
-                1. Student invitations create pending users first. Final batch
-                membership depends on the activation flow and the current
-                backend integration.
+                1. Student invitations create pending users first, and the batch
+                roster can now show those pending students immediately.
               </li>
               <li>
-                2. Add existing student is used for testing and correction
-                workflows, and the save may succeed even if roster refresh is
-                temporarily failing.
+                2. When a pending student accepts the invitation, backend
+                activation flow can complete their class enrollment later.
               </li>
               <li>
-                3. Remove / unenroll from batch is not exposed by the current
-                backend contract yet, so the UI stays view-only for that action.
+                3. Remove student from batch is only available here while this
+                batch has no assigned classes yet.
+              </li>
+              <li>
+                4. Batch progress and per-student progress are still frontend
+                placeholders based on current active/pending roster state, not
+                detailed learning progression from a dedicated progress service
+                yet.
               </li>
             </ul>
           </Card>
@@ -468,7 +553,249 @@ export function BatchDetailPage({ id }: { id: string }) {
         defaultRole="student"
         fixedBatchId={id}
       />
+      <RemoveStudentModal
+        batchId={id}
+        onClose={() => setRemoveTarget(null)}
+        onDone={async () => {
+          setActionError("");
+          setRemoveTarget(null);
+          await reloadAll();
+        }}
+        onError={setActionError}
+        open={Boolean(removeTarget)}
+        student={removeTarget}
+      />
+      <BatchStudentDetailModal
+        batchName={batch.data?.batch.name ?? "Batch"}
+        linkedClasses={linkedClasses}
+        open={Boolean(detailUserId)}
+        semesterName={
+          batch.data?.batch.starting_semester_title ?? "Current semester"
+        }
+        userId={detailUserId}
+        onClose={() => setDetailUserId(null)}
+      />
     </>
+  );
+}
+
+function BatchStudentDetailModal({
+  batchName,
+  linkedClasses,
+  open,
+  semesterName,
+  userId,
+  onClose,
+}: {
+  batchName: string;
+  linkedClasses: { id: string; code: string; title: string }[];
+  open: boolean;
+  semesterName: string;
+  userId: string | null;
+  onClose: () => void;
+}) {
+  const detail = useAsync(async () => {
+    if (!userId) return null;
+    return api.users.get(userId);
+  }, [userId]);
+
+  const user = detail.data;
+  const overallProgress = studentProgress(user?.status ?? "inactive");
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={user?.full_name ?? "User detail"}
+      description={
+        user ? `Student - ${user.email}` : "Loading student information"
+      }
+      size="lg"
+    >
+      {detail.loading && <LoadingState label="Loading student detail" />}
+      {detail.error && <ErrorState message={detail.error} />}
+
+      {user && (
+        <div className="space-y-5">
+          <div className="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-soft">
+            <div className="h-14 bg-gradient-to-r from-navy-900 to-navy-700" />
+            <div className="flex items-start gap-4 px-5 pb-4">
+              <div className="-mt-7 flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.2rem] border-4 border-white bg-navy-800 text-base font-bold text-cream-50 shadow-soft">
+                {initials(user.full_name || user.email)}
+              </div>
+              <div className="min-w-0 pt-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-[1.05rem] font-semibold text-navy-900">
+                    {user.full_name}
+                  </p>
+                  <StatusBadge value={user.status} />
+                </div>
+                <p className="mt-1 truncate text-sm text-ink-500">
+                  {user.email}
+                </p>
+                <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-ink-400">
+                  Joined {formatJoinedDate(user.created_at)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-4">
+            <MetricCard label="Student ID" value={user.id} />
+            <MetricCard label="Current batch" value={batchName} />
+            <MetricCard label="Current semester" value={semesterName} />
+            <MetricCard
+              label="Overall progress"
+              value={`${overallProgress}%`}
+            />
+          </div>
+
+          <div className="space-y-1 text-sm text-ink-700">
+            <p>
+              <span className="font-semibold text-navy-900">All batches:</span>{" "}
+              {batchName}
+            </p>
+            <p>
+              <span className="font-semibold text-navy-900">
+                All semesters:
+              </span>{" "}
+              {semesterName}
+            </p>
+          </div>
+
+          <section>
+            <h3 className="flex items-center gap-2 text-[1rem] font-semibold text-navy-900">
+              <span className="text-gold-600">o</span>
+              Active Classes
+            </h3>
+            <div className="mt-3 space-y-3">
+              {linkedClasses.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-ink-200 bg-cream-50 px-4 py-6 text-sm text-ink-500">
+                  No linked classes yet.
+                </div>
+              ) : (
+                linkedClasses.map((classItem, index) => {
+                  const progress = classProgress(user.status, index);
+                  return (
+                    <div
+                      key={`${user.id}-${classItem.id}`}
+                      className="rounded-xl border border-ink-100 bg-white px-4 py-4 shadow-soft"
+                    >
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <p className="font-semibold text-navy-900">
+                            {classItem.title}
+                          </p>
+                          <p className="mt-1 text-sm text-ink-500">
+                            {classItem.code} - {semesterName}
+                          </p>
+                        </div>
+                        <div className="w-full max-w-[220px]">
+                          <div className="mb-1 flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-ink-500">
+                            <span>Progress</span>
+                            <span>{progress}%</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-cream-200">
+                            <div
+                              className="h-2 rounded-full bg-navy-800"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-2 text-[1rem] font-semibold text-navy-900">
+              <span className="text-gold-600">o</span>
+              Archived Classes
+            </h3>
+            <div className="mt-3 rounded-xl border border-dashed border-ink-200 bg-cream-50 px-4 py-6 text-sm text-ink-500">
+              No archived class history is available from the current backend
+              contract yet.
+            </div>
+          </section>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+function RemoveStudentModal({
+  batchId,
+  onClose,
+  onDone,
+  onError,
+  open,
+  student,
+}: {
+  batchId: string;
+  onClose: () => void;
+  onDone: () => Promise<void>;
+  onError: (message: string) => void;
+  open: boolean;
+  student: { id: string; full_name: string } | null;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function confirm() {
+    if (!student) return;
+    setLoading(true);
+    setError("");
+    try {
+      await api.batches.removeStudent(batchId, student.id);
+      await onDone();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Remove student failed";
+      setError(message);
+      onError(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={
+        student
+          ? `Remove ${student.full_name} from this batch?`
+          : "Remove student"
+      }
+      description="This is only allowed while the student is not enrolled through classes attached to this batch."
+      eyebrow="Director - Batch Students"
+      footer={
+        <>
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            loading={loading}
+            onClick={() => void confirm()}
+          >
+            Remove student
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <div className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-800 ring-1 ring-rose-200">
+          Removing a student from the batch will also block them from future
+          batch-based class enrollment until they are added again.
+        </div>
+        {error && <ErrorState message={error} />}
+      </div>
+    </Modal>
   );
 }
 
@@ -651,9 +978,26 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-ink-100 bg-white px-4 py-3 shadow-soft">
+      <p className="text-[11px] font-bold uppercase tracking-wider text-ink-500">
+        {label}
+      </p>
+      <p className="mt-2 text-[0.95rem] font-semibold text-navy-900">{value}</p>
+    </div>
+  );
+}
+
 function studentProgress(status: string) {
   if (status === "active") return 100;
   if (status === "pending") return 35;
+  return 0;
+}
+
+function classProgress(status: string, index: number) {
+  if (status === "active") return [68, 55, 70, 82][index % 4];
+  if (status === "pending") return [25, 18, 30, 22][index % 4];
   return 0;
 }
 
@@ -682,4 +1026,9 @@ function escapeCsv(value: string) {
     return `"${normalized.replaceAll('"', '""')}"`;
   }
   return normalized;
+}
+
+function formatJoinedDate(value: string) {
+  if (!value) return "n/a";
+  return new Date(value).toLocaleDateString("en-CA");
 }

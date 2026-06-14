@@ -65,6 +65,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false));
   }, [refreshMe]);
 
+  useEffect(() => {
+    if (!user) return;
+
+    const interval = window.setInterval(
+      () => {
+        const refreshToken = getRefreshToken();
+        if (!refreshToken) return;
+        void api.auth.refresh(refreshToken).catch(() => undefined);
+      },
+      10 * 60 * 1000,
+    );
+
+    return () => window.clearInterval(interval);
+  }, [user]);
+
   const login = useCallback(
     async (email: string, password: string) => {
       const result = await api.auth.login(email, password);
