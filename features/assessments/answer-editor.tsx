@@ -121,12 +121,7 @@ export function AnswerEditor({ questionId }: { questionId: string }) {
       </div>
       {error && <ErrorState message={error} />}
       <div className="flex justify-end">
-        <Button
-          loading={saving}
-          type="button"
-          onClick={save}
-          disabled={!dirty}
-        >
+        <Button loading={saving} type="button" onClick={save} disabled={!dirty}>
           Save answers
         </Button>
       </div>

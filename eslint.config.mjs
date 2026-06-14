@@ -8,6 +8,7 @@ const eslintConfig = defineConfig([
   {
     rules: {
       "react-hooks/set-state-in-effect": "off",
+      "@next/next/no-html-link-for-pages": "off",
     },
   },
   // Override default ignores of eslint-config-next.
@@ -17,7 +18,7 @@ const eslintConfig = defineConfig([
     "**/.next/**",
     "out/**",
     "build/**",
-    "apps/web/legacy-app/**",
+    "legacy-app/**",
     "next-env.d.ts",
   ]),
 ]);

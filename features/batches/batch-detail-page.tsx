@@ -24,6 +24,17 @@ export function BatchDetailPage({ id }: { id: string }) {
   const [filter, setFilter] = useState<StudentFilter>("all");
   const batch = useAsync(() => api.batches.getDetail(id), [id]);
   const roster = useAsync(() => api.batches.students(id), [id]);
+  const studentDirectory = useAsync(
+    () =>
+      api.users.list(
+        new URLSearchParams([
+          ["limit", "1000"],
+          ["offset", "0"],
+          ["role_filter", "student"],
+        ]),
+      ),
+    [id],
+  );
   const classes = useAsync(() => api.classes.list(), []);
   const courses = useAsync(() => api.courses.list(), []);
 
@@ -42,40 +53,71 @@ export function BatchDetailPage({ id }: { id: string }) {
     });
   }, [batch.data?.class_ids, classes.data?.classes, courses.data?.courses]);
 
+  const fallbackStudents = useMemo(() => {
+    const knownStudentIds = new Set(batch.data?.student_ids ?? []);
+    if (knownStudentIds.size === 0) return [];
+
+    return (studentDirectory.data?.users ?? [])
+      .filter((user) => knownStudentIds.has(user.id))
+      .map((user) => ({
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        status: user.status,
+        added_at: user.created_at,
+      }));
+  }, [batch.data?.student_ids, studentDirectory.data?.users]);
+
+  const rosterStudents = useMemo(() => {
+    if ((roster.data?.students?.length ?? 0) > 0) {
+      return roster.data?.students ?? [];
+    }
+    if (roster.error) return fallbackStudents;
+    return roster.data?.students ?? [];
+  }, [fallbackStudents, roster.data?.students, roster.error]);
+
   const counts = useMemo(() => {
-    const students = roster.data?.students ?? [];
     return {
-      active: students.filter((student) => student.status === "active").length,
-      pending: students.filter((student) => student.status === "pending")
+      active: rosterStudents.filter((student) => student.status === "active")
         .length,
-      inactive: students.filter((student) => student.status === "inactive")
+      pending: rosterStudents.filter((student) => student.status === "pending")
         .length,
+      inactive: rosterStudents.filter(
+        (student) => student.status === "inactive",
+      ).length,
     };
-  }, [roster.data?.students]);
+  }, [rosterStudents]);
 
   const visibleStudents = useMemo(() => {
     const value = query.trim().toLowerCase();
-    return (roster.data?.students ?? []).filter((student) => {
+    return rosterStudents.filter((student) => {
       if (filter !== "all" && student.status !== filter) return false;
       if (!value) return true;
       return [student.full_name, student.email].some((item) =>
         item.toLowerCase().includes(value),
       );
     });
-  }, [filter, query, roster.data?.students]);
+  }, [filter, query, rosterStudents]);
 
   const activeCourses = linkedClasses.length;
-  const enrolledCount = roster.data?.students.length ?? 0;
+  const enrolledCount = Math.max(
+    batch.data?.student_count ?? 0,
+    rosterStudents.length,
+  );
   const progressPercent =
     enrolledCount === 0 ? 0 : Math.round((counts.active / enrolledCount) * 100);
 
   async function reloadAll() {
-    await Promise.all([batch.reload(), roster.reload()]);
+    await Promise.all([
+      batch.reload(),
+      roster.reload(),
+      studentDirectory.reload(),
+    ]);
   }
 
   function exportRoster() {
     const rows = [["full_name", "email", "status"]];
-    (roster.data?.students ?? []).forEach((student) => {
+    rosterStudents.forEach((student) => {
       rows.push([student.full_name, student.email, student.status]);
     });
     const csv = rows.map((row) => row.map(escapeCsv).join(",")).join("\n");
@@ -94,12 +136,19 @@ export function BatchDetailPage({ id }: { id: string }) {
 
       {(batch.loading ||
         roster.loading ||
+        studentDirectory.loading ||
         classes.loading ||
         courses.loading) && <LoadingState label="Loading batch" />}
-      {(batch.error || roster.error || classes.error || courses.error) && (
+      {(batch.error ||
+        studentDirectory.error ||
+        classes.error ||
+        courses.error) && (
         <ErrorState
           message={
-            batch.error || roster.error || classes.error || courses.error
+            batch.error ||
+            studentDirectory.error ||
+            classes.error ||
+            courses.error
           }
         />
       )}
@@ -259,6 +308,12 @@ export function BatchDetailPage({ id }: { id: string }) {
               </div>
             </div>
 
+            {roster.error && (
+              <div className="border-b border-ink-100 px-6 py-4">
+                <ErrorState message="Student roster refresh is failing in the backend right now. We are showing fallback batch membership from batch detail data, so newly added students may already be saved even if this page still warns." />
+              </div>
+            )}
+
             {visibleStudents.length === 0 ? (
               <div className="p-6">
                 <EmptyState
@@ -363,12 +418,14 @@ export function BatchDetailPage({ id }: { id: string }) {
             </h2>
             <ul className="mt-3 space-y-2 text-sm text-ink-600">
               <li>
-                1. New student invites should attach directly to this batch
-                during onboarding.
+                1. Student invitations create pending users first. Final batch
+                membership depends on the activation flow and the current
+                backend integration.
               </li>
               <li>
-                2. Add existing student is kept for testing and correction
-                workflows.
+                2. Add existing student is used for testing and correction
+                workflows, and the save may succeed even if roster refresh is
+                temporarily failing.
               </li>
               <li>
                 3. Remove / unenroll from batch is not exposed by the current
@@ -382,7 +439,10 @@ export function BatchDetailPage({ id }: { id: string }) {
       <AddStudentsModal
         batchId={id}
         existingStudentIds={
-          new Set((roster.data?.students ?? []).map((student) => student.id))
+          new Set([
+            ...(batch.data?.student_ids ?? []),
+            ...rosterStudents.map((student) => student.id),
+          ])
         }
         open={studentsOpen}
         onClose={() => setStudentsOpen(false)}
@@ -397,7 +457,7 @@ export function BatchDetailPage({ id }: { id: string }) {
           await reloadAll();
         }}
         batches={batch.data ? [batch.data.batch] : []}
-        existingUsers={roster.data?.students ?? []}
+        existingUsers={rosterStudents}
         title={
           batch.data
             ? `Onboard students - ${batch.data.batch.name}`
