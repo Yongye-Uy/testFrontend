@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export function PageHeader({
   title,
   description,
@@ -21,15 +23,28 @@ export function PageHeader({
               key={`${item.label}-${index}`}
             >
               {index > 0 && <span className="text-ink-300">/</span>}
-              <span
-                className={
-                  index === breadcrumbs.length - 1
-                    ? "font-semibold text-navy-700"
-                    : ""
-                }
-              >
-                {item.label}
-              </span>
+              {item.href || item.label === "Home" ? (
+                <Link
+                  href={item.href ?? "/dashboard"}
+                  className={
+                    index === breadcrumbs.length - 1
+                      ? "font-semibold text-navy-700"
+                      : "transition hover:text-navy-700"
+                  }
+                >
+                  {item.label}
+                </Link>
+              ) : (
+                <span
+                  className={
+                    index === breadcrumbs.length - 1
+                      ? "font-semibold text-navy-700"
+                      : ""
+                  }
+                >
+                  {item.label}
+                </span>
+              )}
             </span>
           ))}
         </nav>

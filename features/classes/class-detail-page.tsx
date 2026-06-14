@@ -76,6 +76,7 @@ export function ClassDetailPage({ id }: { id: string }) {
       : null) ??
     classItem.data?.lecturer_id ??
     "Unassigned";
+  const hasAssignedLecturer = Boolean(classItem.data?.lecturer_id);
   const batchCount = batches.data?.batches.length ?? 0;
   const enrollmentCount = enrollments.data?.enrollments.length ?? 0;
   const heroDescription =
@@ -117,7 +118,7 @@ export function ClassDetailPage({ id }: { id: string }) {
               onClick={() => setLecturerOpen(true)}
               leftIcon={<SchoolOutlinedIcon fontSize="small" />}
             >
-              Reassign lecturer
+              {hasAssignedLecturer ? "Reassign lecturer" : "Assign lecturer"}
             </Button>
             <Button
               onClick={() =>
@@ -247,7 +248,7 @@ export function ClassDetailPage({ id }: { id: string }) {
                       helper={
                         classItem.data.lecturer_id
                           ? "Lecturer assignment is complete."
-                          : "Use Reassign lecturer to choose one."
+                          : "Use Assign lecturer to choose one."
                       }
                     />
                     <SummaryTile

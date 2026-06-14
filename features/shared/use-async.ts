@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "@/lib/api-client";
 
 export function useAsync<T>(
@@ -11,7 +11,9 @@ export function useAsync<T>(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const loaderRef = useRef(loader);
-  const dependencyKey = useMemo(() => JSON.stringify(deps), [deps]);
+  // Track the stringified key without memoizing — JSON.stringify only runs when
+  // the ref value changes, not on every render.
+  const prevKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     loaderRef.current = loader;
@@ -30,8 +32,12 @@ export function useAsync<T>(
   }, []);
 
   useEffect(() => {
+    const key = JSON.stringify(deps);
+    if (key === prevKeyRef.current) return;
+    prevKeyRef.current = key;
     void load();
-  }, [dependencyKey, load]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [...deps, load]);
 
   return { data, loading, error, reload: load, setData };
 }

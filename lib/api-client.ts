@@ -1,4 +1,10 @@
-import { getAccessToken, getStoredSession, storeSession } from "./auth";
+import {
+  clearStoredSession,
+  getAccessToken,
+  getRefreshToken,
+  getStoredSession,
+  storeSession,
+} from "./auth";
 import type {
   Assessment,
   AssessmentOptions,
@@ -45,6 +51,8 @@ const serviceBaseUrls: Record<ServiceName, string> = {
   integration: integrationBaseUrl,
 };
 
+let refreshInFlight: Promise<string | null> | null = null;
+
 export class ApiError extends Error {
   status: number;
 
@@ -59,6 +67,7 @@ async function request<T>(
   path: string,
   init: RequestInit = {},
   authenticated = true,
+  retried = false,
 ): Promise<T> {
   const baseUrl = serviceBaseUrls[service];
   const headers = new Headers(init.headers);
@@ -77,6 +86,18 @@ async function request<T>(
     headers,
     cache: "no-store",
   });
+
+  if (
+    response.status === 401 &&
+    authenticated &&
+    !retried &&
+    !(service === "user" && path === "/auth/refresh")
+  ) {
+    const nextAccessToken = await refreshAccessToken();
+    if (nextAccessToken) {
+      return request<T>(service, path, init, authenticated, true);
+    }
+  }
 
   const text = await response.text();
   let data: unknown = null;
@@ -106,6 +127,50 @@ async function request<T>(
   }
 
   return data as T;
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    const refreshToken = getRefreshToken();
+    const session = getStoredSession();
+    if (!refreshToken || !session) {
+      clearStoredSession();
+      return null;
+    }
+
+    try {
+      const response = await request<{
+        access_token: string;
+        refresh_token: string;
+      }>(
+        "user",
+        "/auth/refresh",
+        {
+          method: "POST",
+          ...jsonBody({ refresh_token: refreshToken }),
+        },
+        false,
+        true,
+      );
+
+      storeSession({
+        accessToken: response.access_token,
+        refreshToken: response.refresh_token,
+        user: session.user,
+      });
+
+      return response.access_token;
+    } catch {
+      clearStoredSession();
+      return null;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
 }
 
 function jsonBody(body: unknown): RequestInit {
@@ -140,8 +205,7 @@ function normalizeBatchType(value: unknown, source?: Record<string, unknown>) {
   const type = String(value ?? "")
     .trim()
     .toLowerCase();
-  if (type === "regular") return "general";
-  if (type === "generation" || type === "general") return type;
+  if (type === "generation") return "generation";
 
   const batchSource = source ?? {};
   if (batchSource.is_generation_batch === true) return "generation";
@@ -159,6 +223,8 @@ function normalizeBatchType(value: unknown, source?: Record<string, unknown>) {
       batchSource.starting_semester_title.trim().length > 0);
 
   if (hasGenerationMetadata) return "generation";
+  if (type === "regular") return "general";
+  if (type === "general") return "general";
 
   return "general";
 }
@@ -634,6 +700,15 @@ export const api = {
           results: (response.results ?? []).map(normalizeInviteResult),
         }),
       ),
+    resendInvitation: (id: string) =>
+      request<{ invitation_url?: string }>(
+        "user",
+        `/users/${id}/resend-invitation`,
+        {
+          method: "POST",
+          ...jsonBody({ user_id: Number(id) }),
+        },
+      ),
     update: (id: string, body: { email?: string; full_name?: string }) =>
       request<{ user: unknown }>("user", `/users/${id}`, {
         method: "PUT",
@@ -1009,15 +1084,19 @@ export const api = {
           }),
         },
       ),
-    update: (id: string, body: Partial<Batch>) => {
-      void body;
-      return Promise.reject(
-        new ApiError(
-          501,
-          `Batch update is not exposed by the current course-service contract for batch ${id}.`,
-        ),
-      );
-    },
+    update: (id: string, body: Partial<Batch>) =>
+      request<{ batch: unknown }>("course", `/batches/${id}`, {
+        method: "PATCH",
+        ...jsonBody({
+          id: Number(id),
+          name: body.name ?? "",
+          entry_year: body.entry_year ?? 0,
+          starting_semester_id: body.starting_semester_id
+            ? Number(body.starting_semester_id)
+            : 0,
+          expected_graduation_year: body.expected_graduation_year ?? 0,
+        }),
+      }).then((response) => normalizeBatch(response.batch)),
     changeStatus: (id: string, status: "active" | "archived") =>
       request<{ batch: unknown }>("course", `/batches/${id}/status`, {
         method: "PATCH",
@@ -1052,6 +1131,14 @@ export const api = {
         enrolled_count: 0,
       };
     },
+    removeStudent: (id: string, studentId: string) =>
+      request<{ success: boolean }>(
+        "course",
+        `/batches/${id}/students/${studentId}`,
+        {
+          method: "DELETE",
+        },
+      ),
   },
   assessments: {
     list: () =>

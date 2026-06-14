@@ -2,7 +2,6 @@
 
 import PersonAddAlt1RoundedIcon from "@mui/icons-material/PersonAddAlt1Rounded";
 import UploadFileRoundedIcon from "@mui/icons-material/UploadFileRounded";
-import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -25,18 +24,14 @@ import type {
 } from "@/types/user";
 import { useAsync } from "@/features/shared/use-async";
 import { BulkInviteWizardModal } from "./bulk-invite-wizard-modal";
+import { UserDetailModal } from "./user-detail-modal";
 
 type Mode = "admin" | "director";
 type StatusTab = UserStatus;
-type InviteRole = "lecturer" | "student";
+type InviteRole = "director" | "lecturer" | "student";
 
 const defaultInviteMessage =
   "Welcome to EPPLMS at Paragon International University. Please set up your account using the link in this email.";
-
-const inviteRoleOptions: { value: InviteRole; label: string }[] = [
-  { value: "lecturer", label: "Lecturer" },
-  { value: "student", label: "Student" },
-];
 
 const roleSortOrder = ["super_admin", "director", "lecturer", "student"];
 
@@ -54,6 +49,8 @@ export function UsersPage() {
   const [bulkInviteOpen, setBulkInviteOpen] = useState(false);
   const [inviteResults, setInviteResults] = useState<InviteUserResult[]>([]);
   const [statusMenuUserId, setStatusMenuUserId] = useState<string | null>(null);
+  const [resendingUserId, setResendingUserId] = useState<string | null>(null);
+  const [detailUserId, setDetailUserId] = useState<string | null>(null);
   const [statusConfirmation, setStatusConfirmation] = useState<{
     user: User;
     nextStatus: Extract<UserStatus, "active" | "inactive">;
@@ -147,6 +144,21 @@ export function UsersPage() {
     [batches.data?.batches],
   );
 
+  const inviteRoleOptions = useMemo<{ value: InviteRole; label: string }[]>(
+    () =>
+      mode === "admin"
+        ? [
+            { value: "director", label: "Director" },
+            { value: "lecturer", label: "Lecturer" },
+            { value: "student", label: "Student" },
+          ]
+        : [
+            { value: "lecturer", label: "Lecturer" },
+            { value: "student", label: "Student" },
+          ],
+    [mode],
+  );
+
   if (!mode) {
     return (
       <EmptyState
@@ -167,6 +179,33 @@ export function UsersPage() {
     setBulkInviteOpen(false);
     setStatusTab("pending");
     await reloadAll();
+  }
+
+  async function handleResendInvitation(user: User) {
+    setResendingUserId(user.id);
+    try {
+      await api.users.resendInvitation(user.id);
+      setInviteResults([
+        {
+          email: user.email,
+          success: true,
+          invitation_url: undefined,
+        },
+      ]);
+      setStatusTab("pending");
+      await reloadAll();
+    } catch (err) {
+      setInviteResults([
+        {
+          email: user.email,
+          success: false,
+          error:
+            err instanceof Error ? err.message : "Resend invitation failed",
+        },
+      ]);
+    } finally {
+      setResendingUserId(null);
+    }
   }
 
   const description =
@@ -263,16 +302,15 @@ export function UsersPage() {
         </p>
         <ul className="mt-2 space-y-1 text-sm text-ink-600">
           <li>
-            1. Invitation email delivery is not connected yet, so invite actions
-            create pending records without sending a real email.
+            1. Invite actions now create pending users and can send real email
+            delivery when SMTP is configured in the backend environment.
           </li>
           <li>
-            2. Invite acceptance and password setup page are not wired in the
-            frontend yet.
+            2. Student invites can attach to a batch immediately, so pending
+            students should appear in batch roster views before activation.
           </li>
           <li>
-            3. Reset password is still not exposed by the current backend
-            contract.
+            3. Pending users can now receive a resent invitation from this page.
           </li>
         </ul>
       </Card>
@@ -299,26 +337,29 @@ export function UsersPage() {
         {!users.loading && !users.error && visibleUsers.length > 0 && (
           <UserDirectory
             currentUserId={currentUser?.id ?? ""}
+            onOpenDetail={(userId) => setDetailUserId(userId)}
             users={visibleUsers}
             onRequestStatusChange={(user, nextStatus) =>
               setStatusConfirmation({ user, nextStatus })
             }
+            onResendInvitation={handleResendInvitation}
             onToggleStatusMenu={(userId) =>
               setStatusMenuUserId((current) =>
                 current === userId ? null : userId,
               )
             }
+            resendingUserId={resendingUserId}
             statusMenuUserId={statusMenuUserId}
           />
         )}
       </div>
 
       <SingleInviteModal
-        mode={mode}
         open={singleInviteOpen}
         batches={assignableBatches}
         onClose={() => setSingleInviteOpen(false)}
         onInvited={handleInvited}
+        roleOptions={inviteRoleOptions}
       />
       <BulkInviteWizardModal
         open={bulkInviteOpen}
@@ -327,6 +368,7 @@ export function UsersPage() {
         onClose={() => setBulkInviteOpen(false)}
         onInvited={handleInvited}
         defaultRole={mode === "director" ? "student" : "student"}
+        allowedRoles={inviteRoleOptions.map((option) => option.value)}
         description="Choose a role, validate the CSV, edit any bad rows, preview the invite list, and then create pending invitations."
       />
       <StatusChangeModal
@@ -342,6 +384,11 @@ export function UsersPage() {
           setStatusMenuUserId(null);
           await users.reload();
         }}
+      />
+      <UserDetailModal
+        open={Boolean(detailUserId)}
+        userId={detailUserId}
+        onClose={() => setDetailUserId(null)}
       />
     </>
   );
@@ -399,12 +446,18 @@ function StatusTabs({
 
 function UserDirectory({
   currentUserId,
+  onOpenDetail,
+  onResendInvitation,
+  resendingUserId,
   users,
   statusMenuUserId,
   onToggleStatusMenu,
   onRequestStatusChange,
 }: {
   currentUserId: string;
+  onOpenDetail: (userId: string) => void;
+  onResendInvitation: (user: User) => Promise<void>;
+  resendingUserId: string | null;
   users: User[];
   statusMenuUserId: string | null;
   onToggleStatusMenu: (userId: string) => void;
@@ -416,7 +469,7 @@ function UserDirectory({
   return (
     <Card className="overflow-hidden" padding="none">
       <div className="overflow-x-auto">
-        <table className="min-w-full text-left">
+        <table className="w-full min-w-[700px] text-left">
           <thead className="bg-cream-100">
             <tr className="text-[11px] font-bold uppercase tracking-[0.18em] text-ink-500">
               <th className="px-5 py-4">Name</th>
@@ -490,12 +543,25 @@ function UserDirectory({
                     {formatDate(user.created_at)}
                   </td>
                   <td className="px-5 py-4 text-right">
-                    <Link
-                      href={`/users/${user.id}`}
-                      className="inline-flex min-h-9 items-center justify-center rounded-lg bg-white px-3.5 py-2 text-sm font-medium text-navy-800 ring-1 ring-ink-300 transition hover:bg-cream-100 hover:ring-ink-400"
-                    >
-                      View detail
-                    </Link>
+                    <div className="flex justify-end gap-2">
+                      {user.status === "pending" && (
+                        <Button
+                          loading={resendingUserId === user.id}
+                          onClick={() => void onResendInvitation(user)}
+                          type="button"
+                          variant="outline"
+                        >
+                          Resend invite
+                        </Button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => onOpenDetail(user.id)}
+                        className="inline-flex min-h-9 items-center justify-center rounded-lg bg-white px-3.5 py-2 text-sm font-medium text-navy-800 ring-1 ring-ink-300 transition hover:bg-cream-100 hover:ring-ink-400"
+                      >
+                        View detail
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -516,17 +582,17 @@ function AvatarLabel({ user }: { user: User }) {
 }
 
 function SingleInviteModal({
-  mode,
   open,
   batches,
   onClose,
   onInvited,
+  roleOptions,
 }: {
-  mode: Mode;
   open: boolean;
   batches: Batch[];
   onClose: () => void;
   onInvited: (results: InviteUserResult[]) => Promise<void>;
+  roleOptions: { value: InviteRole; label: string }[];
 }) {
   const [form, setForm] = useState<{
     full_name: string;
@@ -537,7 +603,7 @@ function SingleInviteModal({
   }>({
     full_name: "",
     email: "",
-    role: mode === "director" ? "lecturer" : "student",
+    role: roleOptions[0]?.value ?? "lecturer",
     batch_id: "",
     personal_message: defaultInviteMessage,
   });
@@ -562,7 +628,7 @@ function SingleInviteModal({
       setForm({
         full_name: "",
         email: "",
-        role: mode === "director" ? "lecturer" : "student",
+        role: roleOptions[0]?.value ?? "lecturer",
         batch_id: "",
         personal_message: defaultInviteMessage,
       });
@@ -579,7 +645,7 @@ function SingleInviteModal({
       onClose={onClose}
       eyebrow="Onboarding - Single Invite"
       title="Invite a new user"
-      description="This creates the pending invite record now. SMTP delivery and invite acceptance UI will connect later."
+      description="This creates the pending invite record now and uses the current backend invitation flow."
     >
       <form className="space-y-4" onSubmit={submit}>
         <div className="grid gap-4 md:grid-cols-2">
@@ -623,7 +689,7 @@ function SingleInviteModal({
                 })
               }
             >
-              {inviteRoleOptions.map((role) => (
+              {roleOptions.map((role) => (
                 <option key={role.value} value={role.value}>
                   {role.label}
                 </option>

@@ -19,7 +19,7 @@ import { api } from "@/lib/api-client";
 import type { Batch } from "@/types/course";
 import type { InviteUserEntry, InviteUserResult, User } from "@/types/user";
 
-type InviteRole = "lecturer" | "student";
+type InviteRole = "director" | "lecturer" | "student";
 type Step = 1 | 2 | 3 | 4;
 
 type DraftRow = {
@@ -54,6 +54,7 @@ export function BulkInviteWizardModal({
   eyebrow = "Onboarding - Bulk Import",
   defaultRole = "lecturer",
   fixedBatchId,
+  allowedRoles = ["lecturer", "student"],
 }: {
   open: boolean;
   onClose: () => void;
@@ -65,6 +66,7 @@ export function BulkInviteWizardModal({
   eyebrow?: string;
   defaultRole?: InviteRole;
   fixedBatchId?: string;
+  allowedRoles?: InviteRole[];
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedRole, setSelectedRole] = useState<InviteRole>(defaultRole);
@@ -247,10 +249,11 @@ export function BulkInviteWizardModal({
                     setHasUnsavedChanges(false);
                   }}
                 >
-                  {!roleLockedToStudent && (
-                    <option value="lecturer">Lecturer</option>
-                  )}
-                  <option value="student">Student</option>
+                  {allowedRoles.map((role) => (
+                    <option key={role} value={role}>
+                      {prettyRoleValue(role)}
+                    </option>
+                  ))}
                 </select>
               </Field>
 
@@ -572,8 +575,8 @@ export function BulkInviteWizardModal({
               {results.filter((item) => item.success).length === 1
                 ? ""
                 : "s"}{" "}
-              have been marked pending. Real SMTP delivery and invite acceptance
-              will connect later.
+              have been marked pending and passed into the current backend
+              invitation flow.
             </p>
             <div className="mt-6 flex justify-center gap-3">
               <Button type="button" variant="outline" onClick={closeModal}>

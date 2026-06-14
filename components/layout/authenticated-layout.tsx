@@ -52,6 +52,19 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
       <aside
         className={`${mobileOpen ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-ink-200 bg-white shadow-[2px_0_10px_-4px_rgba(15,44,92,0.08)] transition lg:static lg:translate-x-0 ${collapsed ? "lg:w-[72px]" : "lg:w-64"}`}
       >
+        <button
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="absolute -right-3 top-5 z-10 hidden h-6 w-6 items-center justify-center rounded-full bg-white text-navy-700 shadow-card ring-1 ring-ink-200 transition hover:bg-cream-100 hover:text-navy-900 lg:flex"
+          onClick={() => setCollapsed(!collapsed)}
+          type="button"
+        >
+          {collapsed ? (
+            <KeyboardDoubleArrowRightRoundedIcon style={{ fontSize: 16 }} />
+          ) : (
+            <KeyboardDoubleArrowLeftRoundedIcon style={{ fontSize: 16 }} />
+          )}
+        </button>
+
         <div
           className={`border-b border-ink-100 px-5 py-5 ${collapsed ? "lg:flex lg:justify-center lg:px-3" : ""}`}
         >
@@ -114,24 +127,6 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
               <span className="font-mono">v1.0.0</span>
             </div>
           )}
-          <button
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="hidden w-full items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-ink-500 transition hover:bg-cream-100 lg:flex"
-            onClick={() => setCollapsed(!collapsed)}
-            type="button"
-          >
-            {collapsed ? (
-              <>
-                <KeyboardDoubleArrowRightRoundedIcon sx={{ fontSize: 16 }} />
-                Expand
-              </>
-            ) : (
-              <>
-                <KeyboardDoubleArrowLeftRoundedIcon sx={{ fontSize: 16 }} />
-                Collapse
-              </>
-            )}
-          </button>
         </div>
       </aside>
 
@@ -160,7 +155,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4 lg:px-6">
+        <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4 lg:px-6">
           {children}
         </main>
       </div>
@@ -207,7 +202,7 @@ function SidebarLink({
         className={`flex min-w-0 items-center gap-3 ${collapsed ? "justify-center" : ""}`}
       >
         <span className="shrink-0 text-ink-500 group-hover:text-inherit">
-          {Icon ? <Icon sx={{ fontSize: 20 }} /> : null}
+          {Icon ? <Icon style={{ fontSize: 20 }} /> : null}
         </span>
         <span className={collapsed ? "lg:hidden" : ""}>{item.label}</span>
       </span>
@@ -248,7 +243,10 @@ function ProfileMenu({ user, logout }: { user: User; logout: () => void }) {
           photoUrl={user.photo_url}
           textClassName="text-xs font-bold"
         />
-        <ExpandMoreRoundedIcon sx={{ fontSize: 18 }} className="text-ink-500" />
+        <ExpandMoreRoundedIcon
+          style={{ fontSize: 18 }}
+          className="text-ink-500"
+        />
       </button>
 
       {open && (
@@ -279,13 +277,13 @@ function ProfileMenu({ user, logout }: { user: User; logout: () => void }) {
           <div className="p-1">
             <MenuLink
               href="/profile"
-              icon={<PersonOutlineRoundedIcon sx={{ fontSize: 18 }} />}
+              icon={<PersonOutlineRoundedIcon style={{ fontSize: 18 }} />}
               label="Profile"
               onDone={() => setOpen(false)}
             />
             <MenuLink
               href="/settings"
-              icon={<SettingsOutlinedIcon sx={{ fontSize: 18 }} />}
+              icon={<SettingsOutlinedIcon style={{ fontSize: 18 }} />}
               label="Settings"
               onDone={() => setOpen(false)}
             />
@@ -297,7 +295,7 @@ function ProfileMenu({ user, logout }: { user: User; logout: () => void }) {
               onClick={logout}
               type="button"
             >
-              <LogoutRoundedIcon sx={{ fontSize: 18 }} />
+              <LogoutRoundedIcon style={{ fontSize: 18 }} />
               Sign out
             </button>
           </div>
