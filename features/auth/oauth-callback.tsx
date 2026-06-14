@@ -89,11 +89,11 @@ function OauthCallbackInner() {
       <div className="w-full max-w-lg rounded-xl2 bg-white p-7 shadow-soft ring-1 ring-ink-100">
         <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-navy-50 text-navy-700">
           {error ? (
-            <ErrorOutlineRoundedIcon sx={{ fontSize: 26 }} />
+            <ErrorOutlineRoundedIcon style={{ fontSize: 26 }} />
           ) : linked === "true" ? (
-            <LinkRoundedIcon sx={{ fontSize: 26 }} />
+            <LinkRoundedIcon style={{ fontSize: 26 }} />
           ) : (
-            <CheckCircleOutlineRoundedIcon sx={{ fontSize: 26 }} />
+            <CheckCircleOutlineRoundedIcon style={{ fontSize: 26 }} />
           )}
         </div>
 

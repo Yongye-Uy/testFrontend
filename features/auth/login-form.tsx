@@ -66,7 +66,7 @@ function LoginInner() {
         <div className="relative z-10 flex h-full flex-col p-10">
           <div className="inline-flex items-center gap-3">
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/15">
-              <SchoolRoundedIcon sx={{ fontSize: 24 }} />
+              <SchoolRoundedIcon style={{ fontSize: 24 }} />
             </span>
             <div>
               <p className="text-sm font-bold tracking-[0.22em] text-cream-50">
@@ -109,7 +109,7 @@ function LoginInner() {
           <div className="mb-6 lg:hidden">
             <div className="inline-flex items-center gap-3">
               <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-navy-900 text-cream-50 shadow-soft">
-                <SchoolRoundedIcon sx={{ fontSize: 24 }} />
+                <SchoolRoundedIcon style={{ fontSize: 24 }} />
               </span>
               <div>
                 <p className="text-sm font-bold tracking-[0.22em] text-navy-900">

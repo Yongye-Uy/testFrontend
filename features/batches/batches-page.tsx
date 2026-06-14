@@ -635,7 +635,7 @@ function EditBatchModal({
       open={open}
       onClose={onClose}
       title="Edit batch"
-      description="Update program, entry year, starting semester, and expected graduation year."
+      description="Update batch name and timeline details."
       eyebrow="Director - Academic"
     >
       {!batch ? null : (
@@ -667,6 +667,7 @@ function EditBatchModal({
               <Field label="Program">
                 <select
                   className={inputClass}
+                  disabled
                   onChange={(event) =>
                     setForm((current) => ({
                       ...current,
@@ -683,6 +684,10 @@ function EditBatchModal({
                   ))}
                 </select>
               </Field>
+              <p className="-mt-2 text-xs text-ink-500">
+                Program stays read-only here because the active backend update
+                only supports batch name and timeline edits.
+              </p>
 
               <div className="grid gap-3 md:grid-cols-2">
                 <Field label="Entry year">
@@ -698,7 +703,7 @@ function EditBatchModal({
                     value={form.entry_year}
                   />
                 </Field>
-                <Field label="Expected graduation year">
+                <Field label="Expected exit year">
                   <input
                     className={inputClass}
                     onChange={(event) =>
@@ -1169,7 +1174,7 @@ export function BatchModal({
                   value={form.entry_year}
                 />
               </Field>
-              <Field label="Expected graduation year">
+              <Field label="Expected exit year">
                 <input
                   className={inputClass}
                   onChange={(event) =>
