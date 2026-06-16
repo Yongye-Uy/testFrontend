@@ -3,6 +3,7 @@
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -26,7 +27,13 @@ export function ProfilePage() {
           <p>
             Your profile is read-only. Account information is managed by the
             institution. To update your password, visit{" "}
-            <strong>Settings</strong>.
+            <Link
+              href="/settings"
+              className="font-medium text-navy-700 underline underline-offset-2 hover:text-navy-900"
+            >
+              Settings
+            </Link>
+            .
           </p>
         </div>
       </Card>

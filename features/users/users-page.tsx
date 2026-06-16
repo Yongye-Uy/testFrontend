@@ -2,7 +2,7 @@
 
 import PersonAddAlt1RoundedIcon from "@mui/icons-material/PersonAddAlt1Rounded";
 import UploadFileRoundedIcon from "@mui/icons-material/UploadFileRounded";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState, useEffect, useRef } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
@@ -48,12 +48,12 @@ export function UsersPage() {
   const [singleInviteOpen, setSingleInviteOpen] = useState(false);
   const [bulkInviteOpen, setBulkInviteOpen] = useState(false);
   const [inviteResults, setInviteResults] = useState<InviteUserResult[]>([]);
-  const [statusMenuUserId, setStatusMenuUserId] = useState<string | null>(null);
   const [resendingUserId, setResendingUserId] = useState<string | null>(null);
   const [detailUserId, setDetailUserId] = useState<string | null>(null);
-  const [statusConfirmation, setStatusConfirmation] = useState<{
+  const [statusMenu, setStatusMenu] = useState<{
     user: User;
-    nextStatus: Extract<UserStatus, "active" | "inactive">;
+    x: number;
+    y: number;
   } | null>(null);
 
   const users = useAsync(
@@ -296,36 +296,13 @@ export function UsersPage() {
         </Card>
       )}
 
-      <Card className="mt-5 border-gold-200 bg-gold-50/60" padding="md">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gold-700">
-          Current backend notes
-        </p>
-        <ul className="mt-2 space-y-1 text-sm text-ink-600">
-          <li>
-            1. Invite actions now create pending users and can send real email
-            delivery when SMTP is configured in the backend environment.
-          </li>
-          <li>
-            2. Student invites can attach to a batch immediately, so pending
-            students should appear in batch roster views before activation.
-          </li>
-          <li>
-            3. Pending users can now receive a resent invitation from this page.
-          </li>
-        </ul>
-      </Card>
-
       <div className="mt-6">
         <StatusTabs value={statusTab} counts={counts} onChange={setStatusTab} />
       </div>
 
       <div className="mt-4">
-        {(users.loading || batches.loading) && (
-          <LoadingState label="Loading users" />
-        )}
-        {(users.error || batches.error) && (
-          <ErrorState message={users.error || batches.error} />
-        )}
+        {users.loading && <LoadingState label="Loading users" />}
+        {users.error && <ErrorState message={users.error} />}
         {!users.loading && !users.error && visibleUsers.length === 0 && (
           <Card padding="lg">
             <EmptyState
@@ -339,17 +316,9 @@ export function UsersPage() {
             currentUserId={currentUser?.id ?? ""}
             onOpenDetail={(userId) => setDetailUserId(userId)}
             users={visibleUsers}
-            onRequestStatusChange={(user, nextStatus) =>
-              setStatusConfirmation({ user, nextStatus })
-            }
+            onOpenStatusMenu={(user, x, y) => setStatusMenu({ user, x, y })}
             onResendInvitation={handleResendInvitation}
-            onToggleStatusMenu={(userId) =>
-              setStatusMenuUserId((current) =>
-                current === userId ? null : userId,
-              )
-            }
             resendingUserId={resendingUserId}
-            statusMenuUserId={statusMenuUserId}
           />
         )}
       </div>
@@ -371,20 +340,22 @@ export function UsersPage() {
         allowedRoles={inviteRoleOptions.map((option) => option.value)}
         description="Choose a role, validate the CSV, edit any bad rows, preview the invite list, and then create pending invitations."
       />
-      <StatusChangeModal
-        confirmation={statusConfirmation}
-        onCancel={() => setStatusConfirmation(null)}
-        onConfirm={async () => {
-          if (!statusConfirmation) return;
-          await api.users.changeStatus(
-            statusConfirmation.user.id,
-            statusConfirmation.nextStatus,
-          );
-          setStatusConfirmation(null);
-          setStatusMenuUserId(null);
-          await users.reload();
-        }}
-      />
+      {statusMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setStatusMenu(null)}
+          />
+          <StatusDropdown
+            menu={statusMenu}
+            onClose={() => setStatusMenu(null)}
+            onChanged={async () => {
+              setStatusMenu(null);
+              await users.reload();
+            }}
+          />
+        </>
+      )}
       <UserDetailModal
         open={Boolean(detailUserId)}
         userId={detailUserId}
@@ -450,21 +421,14 @@ function UserDirectory({
   onResendInvitation,
   resendingUserId,
   users,
-  statusMenuUserId,
-  onToggleStatusMenu,
-  onRequestStatusChange,
+  onOpenStatusMenu,
 }: {
   currentUserId: string;
   onOpenDetail: (userId: string) => void;
   onResendInvitation: (user: User) => Promise<void>;
   resendingUserId: string | null;
   users: User[];
-  statusMenuUserId: string | null;
-  onToggleStatusMenu: (userId: string) => void;
-  onRequestStatusChange: (
-    user: User,
-    nextStatus: Extract<UserStatus, "active" | "inactive">,
-  ) => void;
+  onOpenStatusMenu: (user: User, x: number, y: number) => void;
 }) {
   return (
     <Card className="overflow-hidden" padding="none">
@@ -504,40 +468,18 @@ function UserDirectory({
                     />
                   </td>
                   <td className="px-5 py-4">
-                    <div className="relative inline-flex">
-                      <button
-                        className="rounded-full disabled:cursor-not-allowed disabled:opacity-70"
-                        disabled={disableStatusChange}
-                        onClick={() => onToggleStatusMenu(user.id)}
-                        type="button"
-                      >
-                        <StatusBadge value={user.status} />
-                      </button>
-                      {statusMenuUserId === user.id && !disableStatusChange && (
-                        <div className="absolute left-0 top-full z-10 mt-2 min-w-[150px] rounded-xl border border-ink-200 bg-white p-1 shadow-soft">
-                          <button
-                            className="block w-full rounded-lg px-3 py-2 text-left text-sm text-navy-900 hover:bg-cream-100 disabled:opacity-50"
-                            disabled={user.status === "active"}
-                            onClick={() =>
-                              onRequestStatusChange(user, "active")
-                            }
-                            type="button"
-                          >
-                            Set Active
-                          </button>
-                          <button
-                            className="block w-full rounded-lg px-3 py-2 text-left text-sm text-navy-900 hover:bg-cream-100 disabled:opacity-50"
-                            disabled={user.status === "inactive"}
-                            onClick={() =>
-                              onRequestStatusChange(user, "inactive")
-                            }
-                            type="button"
-                          >
-                            Set Inactive
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    <button
+                      className="rounded-full disabled:cursor-not-allowed disabled:opacity-70"
+                      disabled={disableStatusChange}
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        onOpenStatusMenu(user, rect.left, rect.bottom + 6);
+                      }}
+                      type="button"
+                      title={disableStatusChange ? undefined : "Change status"}
+                    >
+                      <StatusBadge value={user.status} />
+                    </button>
                   </td>
                   <td className="px-5 py-4 text-sm text-ink-600">
                     {formatDate(user.created_at)}
@@ -747,62 +689,66 @@ function SingleInviteModal({
   );
 }
 
-function StatusChangeModal({
-  confirmation,
-  onCancel,
-  onConfirm,
+function StatusDropdown({
+  menu,
+  onClose,
+  onChanged,
 }: {
-  confirmation: {
-    user: User;
-    nextStatus: Extract<UserStatus, "active" | "inactive">;
-  } | null;
-  onCancel: () => void;
-  onConfirm: () => Promise<void>;
+  menu: { user: User; x: number; y: number };
+  onClose: () => void;
+  onChanged: () => Promise<void>;
 }) {
-  const [loading, setLoading] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState<"active" | "inactive" | null>(null);
   const [error, setError] = useState("");
 
-  async function confirm() {
-    setLoading(true);
+  useEffect(() => {
+    setLoading(null);
+    setError("");
+  }, [menu.user.id]);
+
+  async function applyStatus(nextStatus: "active" | "inactive") {
+    setLoading(nextStatus);
     setError("");
     try {
-      await onConfirm();
+      await api.users.changeStatus(menu.user.id, nextStatus);
+      await onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Status change failed");
-    } finally {
-      setLoading(false);
+      setLoading(null);
     }
   }
 
   return (
-    <Modal
-      open={Boolean(confirmation)}
-      onClose={onCancel}
-      eyebrow="Status - Second Confirmation"
-      title={
-        confirmation
-          ? `Set ${confirmation.user.full_name} to ${confirmation.nextStatus}?`
-          : "Confirm status change"
-      }
-      description="Use this second confirmation before changing a user between active and inactive."
+    <div
+      ref={ref}
+      className="fixed z-50 min-w-[160px] overflow-hidden rounded-xl border border-ink-200 bg-white shadow-soft"
+      style={{ top: menu.y, left: menu.x }}
     >
-      <div className="space-y-4">
-        <div className="rounded-xl border border-ink-100 bg-cream-50 p-4 text-sm text-ink-600">
-          Current status: {confirmation?.user.status ?? "n/a"}
-          <br />
-          Next status: {confirmation?.nextStatus ?? "n/a"}
-        </div>
-        {error && <ErrorState message={error} />}
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="button" loading={loading} onClick={confirm}>
-            Confirm change
-          </Button>
-        </div>
+      {error && (
+        <p className="border-b border-ink-100 px-3 py-2 text-xs text-rose-600">
+          {error}
+        </p>
+      )}
+      <div className="p-1">
+        <button
+          className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-navy-900 hover:bg-cream-100 disabled:cursor-not-allowed disabled:text-ink-400"
+          disabled={menu.user.status === "active" || loading !== null}
+          onClick={() => void applyStatus("active")}
+          type="button"
+        >
+          {loading === "active" ? "Setting…" : "Set Active"}
+        </button>
+        <button
+          className="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-navy-900 hover:bg-cream-100 disabled:cursor-not-allowed disabled:text-ink-400"
+          disabled={menu.user.status === "inactive" || loading !== null}
+          onClick={() => void applyStatus("inactive")}
+          type="button"
+        >
+          {loading === "inactive" ? "Setting…" : "Set Inactive"}
+        </button>
       </div>
-    </Modal>
+    </div>
   );
 }
 

@@ -14,7 +14,12 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 import { useAuth, AuthProvider } from "@/hooks/use-auth";
 import { useSidebar } from "@/hooks/use-sidebar";
 import { isDirector } from "@/lib/auth";
-import { sidebarForUser, type SidebarItem } from "@/lib/sidebar";
+import { api } from "@/lib/api-client";
+import {
+  sidebarForPermissions,
+  sidebarForUser,
+  type SidebarItem,
+} from "@/lib/sidebar";
 import type { User } from "@/types/user";
 
 function LayoutInner({ children }: { children: React.ReactNode }) {
@@ -22,8 +27,26 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   const { mobileOpen, setMobileOpen, collapsed, setCollapsed } = useSidebar();
   const router = useRouter();
   const pathname = usePathname();
-  const items = sidebarForUser(user);
   const director = isDirector(user);
+
+  const [userPermissions, setUserPermissions] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setUserPermissions(null);
+      return;
+    }
+    api.users
+      .getPermissions(user.id)
+      .then(setUserPermissions)
+      .catch(() => setUserPermissions(null)); // on error, keep role-based fallback
+  }, [user?.id, pathname]); // re-fetch on navigation so sidebar reflects permission changes
+
+  // Use permission-based items once loaded; role-based fallback avoids flash.
+  const items =
+    userPermissions !== null
+      ? sidebarForPermissions(userPermissions)
+      : sidebarForUser(user);
   const groups = director ? directorGroups(items) : [{ label: "", items }];
 
   useEffect(() => {

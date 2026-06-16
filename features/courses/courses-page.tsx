@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, inputClass, textareaClass } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
-import { api } from "@/lib/api-client";
+import { api, ApiError } from "@/lib/api-client";
 import { programName } from "./course-utils";
 import { useAsync } from "@/features/shared/use-async";
 import type { Program } from "@/types/course";
@@ -29,7 +29,18 @@ export function CoursesPage() {
   const [expandedPrograms, setExpandedPrograms] = useState<
     Record<string, boolean>
   >({});
-  const programs = useAsync(() => api.programs.list(), []);
+  const [programsBlocked, setProgramsBlocked] = useState(false);
+  const programs = useAsync(
+    () =>
+      api.programs.list().catch((err) => {
+        if (err instanceof ApiError && err.status === 403) {
+          setProgramsBlocked(true);
+          return { programs: [] };
+        }
+        throw err;
+      }),
+    [],
+  );
   const courses = useAsync(
     () => api.courses.list(programId || undefined),
     [programId],
@@ -101,11 +112,14 @@ export function CoursesPage() {
           </div>
         </div>
       </Card>
-      {(programs.loading || courses.loading) && (
-        <LoadingState label="Loading course catalog" />
-      )}
-      {(programs.error || courses.error) && (
-        <ErrorState message={programs.error || courses.error} />
+      {courses.loading && <LoadingState label="Loading course catalog" />}
+      {courses.error && <ErrorState message={courses.error} />}
+      {programsBlocked && (
+        <div className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+          <span className="font-semibold">Program filter unavailable —</span>{" "}
+          grant <code className="font-mono">program.read</code> to enable
+          program grouping and filtering. Courses are shown as a flat list.
+        </div>
       )}
       {courses.data?.courses.length === 0 && (
         <EmptyState

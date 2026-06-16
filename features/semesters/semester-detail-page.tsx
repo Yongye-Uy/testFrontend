@@ -21,7 +21,7 @@ import { Card } from "@/components/ui/card";
 import { Field, inputClass } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { api } from "@/lib/api-client";
+import { api, ApiError } from "@/lib/api-client";
 import { courseLabel, programName } from "@/features/courses/course-utils";
 import { AssignLecturerModal } from "@/features/classes/assign-lecturer-modal";
 import { useAsync } from "@/features/shared/use-async";
@@ -48,19 +48,50 @@ export function SemesterDetailPage({ id }: { id: string }) {
   const [expandedPrograms, setExpandedPrograms] = useState<
     Record<string, boolean>
   >({});
+  const [coursesBlocked, setCoursesBlocked] = useState(false);
+  const [programsBlocked, setProgramsBlocked] = useState(false);
+  const [batchesBlocked, setBatchesBlocked] = useState(false);
   const semester = useAsync(() => api.semesters.get(id), [id]);
   const classes = useAsync(() => api.semesters.classes(id), [id]);
-  const courses = useAsync(() => api.courses.list(), []);
-  const programs = useAsync(() => api.programs.list(), []);
+  const courses = useAsync(
+    () =>
+      api.courses.list().catch((err) => {
+        if (err instanceof ApiError && err.status === 403) {
+          setCoursesBlocked(true);
+          return { courses: [] };
+        }
+        throw err;
+      }),
+    [],
+  );
+  const programs = useAsync(
+    () =>
+      api.programs.list().catch((err) => {
+        if (err instanceof ApiError && err.status === 403) {
+          setProgramsBlocked(true);
+          return { programs: [] };
+        }
+        throw err;
+      }),
+    [],
+  );
   const semesterBatches = useAsync(() => api.semesters.batches(id), [id]);
   const allBatches = useAsync(
     () =>
-      api.batches.list(
-        new URLSearchParams([
-          ["limit", "500"],
-          ["offset", "0"],
-        ]),
-      ),
+      api.batches
+        .list(
+          new URLSearchParams([
+            ["limit", "500"],
+            ["offset", "0"],
+          ]),
+        )
+        .catch((err) => {
+          if (err instanceof ApiError && err.status === 403) {
+            setBatchesBlocked(true);
+            return { batches: [], total: 0 };
+          }
+          throw err;
+        }),
     [],
   );
   const users = useAsync(
@@ -155,30 +186,27 @@ export function SemesterDetailPage({ id }: { id: string }) {
         }
       />
 
-      {(semester.loading ||
-        classes.loading ||
-        courses.loading ||
-        programs.loading ||
-        semesterBatches.loading ||
-        allBatches.loading) && <LoadingState label="Loading semester" />}
-      {(semester.error ||
-        classes.error ||
-        courses.error ||
-        programs.error ||
-        semesterBatches.error ||
-        allBatches.error ||
-        actionError) && (
-        <ErrorState
-          message={
-            semester.error ||
-            classes.error ||
-            courses.error ||
-            programs.error ||
-            semesterBatches.error ||
-            allBatches.error ||
-            actionError
-          }
-        />
+      {(semester.loading || classes.loading) && (
+        <LoadingState label="Loading semester" />
+      )}
+      {(semester.error || classes.error || actionError) && (
+        <ErrorState message={semester.error || classes.error || actionError} />
+      )}
+      {(coursesBlocked || programsBlocked || batchesBlocked) && (
+        <div className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+          <span className="font-semibold">Some reference data limited —</span>{" "}
+          grant{" "}
+          <code className="font-mono">
+            {[
+              coursesBlocked && "course.read",
+              programsBlocked && "program.read",
+              batchesBlocked && "batch.read",
+            ]
+              .filter(Boolean)
+              .join(", ")}
+          </code>{" "}
+          to see full class groupings and batch assignments.
+        </div>
       )}
 
       {semester.data && (

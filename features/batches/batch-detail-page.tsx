@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Field, inputClass } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { api } from "@/lib/api-client";
+import { api, ApiError } from "@/lib/api-client";
 import { useAsync } from "@/features/shared/use-async";
 import { BulkInviteWizardModal } from "@/features/users/bulk-invite-wizard-modal";
 
@@ -31,21 +31,52 @@ export function BatchDetailPage({ id }: { id: string }) {
   );
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<StudentFilter>("all");
+  const [classesBlocked, setClassesBlocked] = useState(false);
+  const [coursesBlocked, setCoursesBlocked] = useState(false);
+  const [directoryBlocked, setDirectoryBlocked] = useState(false);
   const batch = useAsync(() => api.batches.getDetail(id), [id]);
   const roster = useAsync(() => api.batches.students(id), [id]);
   const studentDirectory = useAsync(
     () =>
-      api.users.list(
-        new URLSearchParams([
-          ["limit", "1000"],
-          ["offset", "0"],
-          ["role_filter", "student"],
-        ]),
-      ),
+      api.users
+        .list(
+          new URLSearchParams([
+            ["limit", "1000"],
+            ["offset", "0"],
+            ["role_filter", "student"],
+          ]),
+        )
+        .catch((err) => {
+          if (err instanceof ApiError && err.status === 403) {
+            setDirectoryBlocked(true);
+            return { users: [], total: 0 };
+          }
+          throw err;
+        }),
     [id],
   );
-  const classes = useAsync(() => api.classes.list(), []);
-  const courses = useAsync(() => api.courses.list(), []);
+  const classes = useAsync(
+    () =>
+      api.classes.list().catch((err) => {
+        if (err instanceof ApiError && err.status === 403) {
+          setClassesBlocked(true);
+          return { classes: [] };
+        }
+        throw err;
+      }),
+    [],
+  );
+  const courses = useAsync(
+    () =>
+      api.courses.list().catch((err) => {
+        if (err instanceof ApiError && err.status === 403) {
+          setCoursesBlocked(true);
+          return { courses: [] };
+        }
+        throw err;
+      }),
+    [],
+  );
 
   const linkedClasses = useMemo(() => {
     const classRows = classes.data?.classes ?? [];
@@ -165,23 +196,25 @@ export function BatchDetailPage({ id }: { id: string }) {
     <>
       <BackLink href="/batches" label="Batches" />
 
-      {(batch.loading ||
-        roster.loading ||
-        studentDirectory.loading ||
-        classes.loading ||
-        courses.loading) && <LoadingState label="Loading batch" />}
-      {(batch.error ||
-        studentDirectory.error ||
-        classes.error ||
-        courses.error) && (
-        <ErrorState
-          message={
-            batch.error ||
-            studentDirectory.error ||
-            classes.error ||
-            courses.error
-          }
-        />
+      {(batch.loading || roster.loading) && (
+        <LoadingState label="Loading batch" />
+      )}
+      {batch.error && <ErrorState message={batch.error} />}
+      {(classesBlocked || coursesBlocked) && (
+        <div className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+          <span className="font-semibold">Class details limited —</span> grant{" "}
+          {classesBlocked && coursesBlocked ? (
+            <>
+              <code className="font-mono">class.read</code> and{" "}
+              <code className="font-mono">course.read</code>
+            </>
+          ) : classesBlocked ? (
+            <code className="font-mono">class.read</code>
+          ) : (
+            <code className="font-mono">course.read</code>
+          )}{" "}
+          to see linked classes for this batch.
+        </div>
       )}
 
       {batch.data && (
