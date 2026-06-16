@@ -6,7 +6,7 @@ import { FormEvent, useMemo, useState, useEffect, useRef } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
-import { LoadingState } from "@/components/shared/loading-state";
+import { SkeletonList } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, inputClass, textareaClass } from "@/components/ui/field";
@@ -301,7 +301,7 @@ export function UsersPage() {
       </div>
 
       <div className="mt-4">
-        {users.loading && <LoadingState label="Loading users" />}
+        {users.loading && <SkeletonList count={5} />}
         {users.error && <ErrorState message={users.error} />}
         {!users.loading && !users.error && visibleUsers.length === 0 && (
           <Card padding="lg">

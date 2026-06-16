@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { LoadingState } from "@/components/shared/loading-state";
+import { SkeletonList } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, inputClass } from "@/components/ui/field";
@@ -182,7 +183,7 @@ export function BatchesPage() {
 
       <BatchTabs value={tab} counts={counts} onChange={setTab} />
 
-      {batches.loading && <LoadingState label="Loading batches" />}
+      {batches.loading && <SkeletonList count={5} />}
       {batches.error && <ErrorState message={batches.error} />}
 
       {(programsBlocked || semestersBlocked) && (

@@ -5,12 +5,14 @@ import { useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { BackLink } from "@/components/shared/back-link";
 import { ErrorState } from "@/components/shared/error-state";
-import { LoadingState } from "@/components/shared/loading-state";
+import { SkeletonCard } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { api } from "@/lib/api-client";
 import { useAsync } from "@/features/shared/use-async";
+import { useAuth } from "@/hooks/use-auth";
+import { isLecturer, isSuperAdmin } from "@/lib/auth";
 import { AssessmentModal } from "./assessments-page";
 import { AssessmentSettingsCard } from "./assessment-settings-card";
 import { QuestionsPanel } from "./question-list";
@@ -20,6 +22,8 @@ type DetailTab = "questions" | "settings" | "submissions";
 
 export function AssessmentDetailPage({ id }: { id: string }) {
   const router = useRouter();
+  const { user } = useAuth();
+  const canManage = isLecturer(user) || isSuperAdmin(user);
   const [editOpen, setEditOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<DetailTab>("questions");
   const [actionError, setActionError] = useState("");
@@ -82,7 +86,8 @@ export function AssessmentDetailPage({ id }: { id: string }) {
           { label: assessment.data?.title ?? "Assessment detail" },
         ]}
         actions={
-          assessment.data && (
+          assessment.data &&
+          canManage && (
             <>
               <Button variant="secondary" onClick={() => setEditOpen(true)}>
                 Edit
@@ -113,7 +118,7 @@ export function AssessmentDetailPage({ id }: { id: string }) {
         }
       />
 
-      {assessment.loading && <LoadingState label="Loading assessment" />}
+      {assessment.loading && <SkeletonCard />}
       {(assessment.error || actionError) && (
         <ErrorState message={assessment.error || actionError} />
       )}

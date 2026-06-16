@@ -15,7 +15,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { BackLink } from "@/components/shared/back-link";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
-import { LoadingState } from "@/components/shared/loading-state";
+import { SkeletonCard } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -24,6 +24,8 @@ import { courseLabel } from "@/features/courses/course-utils";
 import { AssignLecturerModal } from "@/features/classes/assign-lecturer-modal";
 import { LecturerClassDetailPage } from "@/features/classes/lecturer-class-detail-page";
 import { useAsync } from "@/features/shared/use-async";
+import { useAuth } from "@/hooks/use-auth";
+import { isLecturer } from "@/lib/auth";
 
 type ClassTab =
   | "overview"
@@ -173,9 +175,7 @@ function DirectorClassDetailPage({ id }: { id: string }) {
         }
       />
 
-      {(classItem.loading || enrollments.loading) && (
-        <LoadingState label="Loading class offering" />
-      )}
+      {(classItem.loading || enrollments.loading) && <SkeletonCard />}
       {(classItem.error || enrollments.error || assignError) && (
         <ErrorState
           message={classItem.error || enrollments.error || assignError}

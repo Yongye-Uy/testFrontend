@@ -5,7 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
-import { LoadingState } from "@/components/shared/loading-state";
+import { SkeletonList } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, inputClass, textareaClass } from "@/components/ui/field";
@@ -13,9 +13,13 @@ import { Modal } from "@/components/ui/modal";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { api } from "@/lib/api-client";
 import { useAsync } from "@/features/shared/use-async";
+import { useAuth } from "@/hooks/use-auth";
+import { isLecturer, isSuperAdmin } from "@/lib/auth";
 import type { Assessment } from "@/types/assessment";
 
 export function AssessmentsPage() {
+  const { user } = useAuth();
+  const canManage = isLecturer(user) || isSuperAdmin(user);
   const [open, setOpen] = useState(false);
   const assessments = useAsync(() => api.assessments.list(), []);
 
@@ -26,10 +30,12 @@ export function AssessmentsPage() {
         description="Create and manage assessments for your classes: author questions, configure settings, and review student submissions."
         breadcrumbs={[{ label: "Home" }, { label: "Assessments" }]}
         actions={
-          <Button onClick={() => setOpen(true)}>Create assessment</Button>
+          canManage ? (
+            <Button onClick={() => setOpen(true)}>Create assessment</Button>
+          ) : undefined
         }
       />
-      {assessments.loading && <LoadingState label="Loading assessments" />}
+      {assessments.loading && <SkeletonList count={5} />}
       {assessments.error && <ErrorState message={assessments.error} />}
       {assessments.data?.assessments.length === 0 && (
         <EmptyState

@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { LoadingState } from "@/components/shared/loading-state";
+import { SkeletonList } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, inputClass } from "@/components/ui/field";
@@ -68,7 +69,7 @@ export function SemestersPage() {
         actions={<Button onClick={() => setOpen(true)}>Create semester</Button>}
       />
       <SemesterTabs value={tab} counts={counts} onChange={setTab} />
-      {semesters.loading && <LoadingState label="Loading semesters" />}
+      {semesters.loading && <SkeletonList count={4} />}
       {(semesters.error || actionError) && (
         <ErrorState message={semesters.error || actionError} />
       )}

@@ -6,6 +6,7 @@ import { BackLink } from "@/components/shared/back-link";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { LoadingState } from "@/components/shared/loading-state";
+import { SkeletonCard } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, inputClass } from "@/components/ui/field";
@@ -196,9 +197,7 @@ export function BatchDetailPage({ id }: { id: string }) {
     <>
       <BackLink href="/batches" label="Batches" />
 
-      {(batch.loading || roster.loading) && (
-        <LoadingState label="Loading batch" />
-      )}
+      {(batch.loading || roster.loading) && <SkeletonCard />}
       {batch.error && <ErrorState message={batch.error} />}
       {(classesBlocked || coursesBlocked) && (
         <div className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">

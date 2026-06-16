@@ -16,6 +16,7 @@ import { BackLink } from "@/components/shared/back-link";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { LoadingState } from "@/components/shared/loading-state";
+import { SkeletonCard } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, inputClass } from "@/components/ui/field";
@@ -186,9 +187,7 @@ export function SemesterDetailPage({ id }: { id: string }) {
         }
       />
 
-      {(semester.loading || classes.loading) && (
-        <LoadingState label="Loading semester" />
-      )}
+      {(semester.loading || classes.loading) && <SkeletonCard />}
       {(semester.error || classes.error || actionError) && (
         <ErrorState message={semester.error || classes.error || actionError} />
       )}

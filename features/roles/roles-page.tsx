@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
-import { LoadingState } from "@/components/shared/loading-state";
+import { SkeletonList } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, inputClass } from "@/components/ui/field";
@@ -324,7 +324,7 @@ export function RolesPage() {
         role display and permission changes together.
       </div>
 
-      {loading && <LoadingState label="Loading roles and permissions" />}
+      {loading && <SkeletonList count={5} />}
       {error && <ErrorState message={error} />}
       {!loading && !error && roles.length === 0 && (
         <EmptyState
