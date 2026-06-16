@@ -8,17 +8,29 @@ import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { LoadingState } from "@/components/shared/loading-state";
+import { PageSkeleton } from "@/components/ui/skeleton";
 import { CapabilityNotice } from "@/components/shared/capability-notice";
 import { useAsync } from "@/features/shared/use-async";
+import { useLecturerClasses } from "@/features/classes/use-lecturer-classes";
+import { LecturerClassCard } from "@/features/classes/lecturer-class-card";
 import { useAuth } from "@/hooks/use-auth";
-import { isDirector, isSuperAdmin } from "@/lib/auth";
+import { isDirector, isLecturer, isSuperAdmin } from "@/lib/auth";
 import { api } from "@/lib/api-client";
 import { backendCapabilities } from "@/lib/backend-capabilities";
 
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
 export function DashboardPage() {
   const { user } = useAuth();
+  const lecturer = useLecturerClasses();
   const programs = useAsync(
     () =>
       isDirector(user)
@@ -140,6 +152,82 @@ export function DashboardPage() {
     );
   }
 
+  if (isLecturer(user)) {
+    const overview = lecturer.data;
+    const classes = overview?.classes ?? [];
+    const classCount = classes.length;
+    const semesterTitle = overview?.activeSemester?.title;
+
+    return (
+      <>
+        <PageHeader
+          title={`${greeting()}, ${user?.full_name ?? "Lecturer"}`}
+          description="Here's what's happening across your classes today."
+          breadcrumbs={[{ label: "Home" }, { label: "Dashboard" }]}
+        />
+
+        {lecturer.error && <ErrorState message={lecturer.error} />}
+
+        {lecturer.loading ? (
+          <PageSkeleton rows={2} />
+        ) : (
+          <>
+            <div className="grid gap-4 md:grid-cols-2">
+              <StatCard
+                title="Students"
+                value={String(overview?.totalStudents ?? 0)}
+                helper={
+                  semesterTitle
+                    ? `across ${classCount} class${classCount === 1 ? "" : "es"} · ${semesterTitle}`
+                    : `across ${classCount} class${classCount === 1 ? "" : "es"}`
+                }
+                href="/classes"
+                icon={<GroupsOutlinedIcon sx={{ fontSize: 20 }} />}
+              />
+              <StatCard
+                title="Lessons Published"
+                value="Coming soon"
+                helper="Lesson publishing isn't exposed by the backend yet."
+                icon={<AutoStoriesOutlinedIcon sx={{ fontSize: 20 }} />}
+                muted
+              />
+            </div>
+
+            <div className="mt-6">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-serif-display text-[1.1rem] font-semibold leading-7 text-navy-900">
+                  My classes
+                </h2>
+                <Link
+                  href="/classes"
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-navy-700 transition hover:text-navy-900"
+                >
+                  View all classes
+                  <ArrowOutwardRoundedIcon sx={{ fontSize: 16 }} />
+                </Link>
+              </div>
+
+              <div className="mt-4">
+                {classCount === 0 ? (
+                  <EmptyState
+                    title="No classes assigned"
+                    description="You have no classes assigned for the current semester yet. They'll appear here once a director assigns you to a class."
+                  />
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {classes.map((item) => (
+                      <LecturerClassCard key={item.id} item={item} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </>
+    );
+  }
+
   const cards = isSuperAdmin(user)
     ? [
         ["Users", "/users", "Manage users, statuses, and password resets."],
@@ -241,6 +329,47 @@ function MetricLabel({
       </Card>
     </Link>
   );
+}
+
+function StatCard({
+  title,
+  value,
+  helper,
+  icon,
+  href,
+  muted = false,
+}: {
+  title: string;
+  value: string;
+  helper?: string;
+  icon?: React.ReactNode;
+  href?: string;
+  muted?: boolean;
+}) {
+  const inner = (
+    <Card hover={Boolean(href)} className="h-full p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-ink-500">
+            {title}
+          </p>
+          <p
+            className={`mt-2 font-serif-display text-[1.65rem] font-semibold leading-8 ${
+              muted ? "text-ink-400" : "text-navy-900"
+            }`}
+          >
+            {value}
+          </p>
+          {helper && <p className="mt-1 text-sm text-ink-500">{helper}</p>}
+        </div>
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-navy-50 text-navy-800 ring-1 ring-navy-100">
+          {icon}
+        </span>
+      </div>
+    </Card>
+  );
+
+  return href ? <Link href={href}>{inner}</Link> : inner;
 }
 
 function WorkflowCard({
