@@ -87,11 +87,9 @@ export function clearPendingAuth() {
   window.sessionStorage.removeItem(PENDING_AUTH_KEY);
 }
 
-export function defaultRouteForUser(user: User) {
-  const roles = new Set([user.role, ...user.roles]);
-  if (user.is_super_admin || roles.has("super_admin")) return "/users";
-  if (roles.has("director")) return "/courses";
-  if (roles.has("lecturer")) return "/assessments";
+export function defaultRouteForUser() {
+  // Every role lands on the dashboard after login; the dashboard renders
+  // role-specific content (super_admin, director, lecturer) on its own.
   return "/dashboard";
 }
 

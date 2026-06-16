@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user: result.user,
       });
       setUser(result.user);
-      router.replace(defaultRouteForUser(result.user));
+      router.replace(defaultRouteForUser());
     },
     [router],
   );
@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           user: nextUser,
         });
         setUser(nextUser);
-        router.replace(defaultRouteForUser(nextUser));
+        router.replace(defaultRouteForUser());
       } catch (error) {
         clearStoredSession();
         throw error;
