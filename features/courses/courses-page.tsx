@@ -11,7 +11,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
-import { LoadingState } from "@/components/shared/loading-state";
+import { SkeletonList } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, inputClass, textareaClass } from "@/components/ui/field";
@@ -112,7 +112,7 @@ export function CoursesPage() {
           </div>
         </div>
       </Card>
-      {courses.loading && <LoadingState label="Loading course catalog" />}
+      {courses.loading && <SkeletonList count={5} />}
       {courses.error && <ErrorState message={courses.error} />}
       {programsBlocked && (
         <div className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">

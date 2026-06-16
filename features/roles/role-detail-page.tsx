@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { BackLink } from "@/components/shared/back-link";
 import { CapabilityNotice } from "@/components/shared/capability-notice";
 import { ErrorState } from "@/components/shared/error-state";
-import { LoadingState } from "@/components/shared/loading-state";
+import { SkeletonCard } from "@/components/shared/Skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -109,7 +109,7 @@ export function RoleDetailPage({ id }: { id: string }) {
         title={role?.name ?? "Role detail"}
         description="Role update is not exposed by Backend2.0 yet. Permission assignment and deletion still work."
       />
-      {loading && <LoadingState label="Loading role" />}
+      {loading && <SkeletonCard />}
       {error && <ErrorState message={error} />}
       {!loading && !role && (
         <ErrorState message="Role not found in current list." />

@@ -1,11 +1,9 @@
-import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
-import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import type { SvgIconComponent } from "@mui/icons-material";
 import type { User } from "@/types/user";
 import { isDirector, isLecturer, isSuperAdmin } from "./auth";
@@ -54,12 +52,6 @@ const ALL_SIDEBAR_ITEMS: SidebarItem[] = [
     icon: GroupsOutlinedIcon,
     permission: "batch.read",
   },
-  {
-    label: "Assessments",
-    href: "/assessments",
-    icon: AssignmentOutlinedIcon,
-    permission: "assessment.read",
-  },
 ];
 
 // Permission-based sidebar — driven by the user's actual RBAC permissions.
@@ -80,7 +72,6 @@ export function sidebarForUser(user: User | null): SidebarItem[] {
     return ALL_SIDEBAR_ITEMS.filter((item) => item.href !== "/roles");
   }
 
-  return ALL_SIDEBAR_ITEMS.filter((item) => !item.permission);
   if (isLecturer(user)) {
     return [
       {
@@ -93,19 +84,8 @@ export function sidebarForUser(user: User | null): SidebarItem[] {
         href: "/classes",
         icon: MenuBookOutlinedIcon,
       },
-      {
-        label: "Assessments",
-        href: "/assessments",
-        icon: AssignmentOutlinedIcon,
-      },
     ];
   }
 
-  return [
-    {
-      label: "Dashboard",
-      href: "/dashboard",
-      icon: DashboardOutlinedIcon,
-    },
-  ];
+  return ALL_SIDEBAR_ITEMS.filter((item) => !item.permission);
 }

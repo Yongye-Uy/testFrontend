@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
-import { LoadingState } from "@/components/shared/loading-state";
+import { SkeletonCard } from "@/components/shared/Skeleton";
 import { PageSkeleton } from "@/components/ui/skeleton";
 import { CapabilityNotice } from "@/components/shared/capability-notice";
 import { useAsync } from "@/features/shared/use-async";
@@ -69,7 +69,7 @@ export function DashboardPage() {
           breadcrumbs={[{ label: "Home" }, { label: "Dashboard" }]}
         />
 
-        {loading && <LoadingState label="Loading director dashboard" />}
+        {loading && <SkeletonCard />}
         {error && <ErrorState message={error} />}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

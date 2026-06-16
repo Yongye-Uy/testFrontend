@@ -4,7 +4,7 @@ import Link from "next/link";
 import { BackLink } from "@/components/shared/back-link";
 import { CapabilityNotice } from "@/components/shared/capability-notice";
 import { ErrorState } from "@/components/shared/error-state";
-import { LoadingState } from "@/components/shared/loading-state";
+import { SkeletonCard } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -25,7 +25,7 @@ export function UserDetailPage({ id }: { id: string }) {
   return (
     <>
       <BackLink href="/users" label="Users" />
-      {loading && <LoadingState label="Loading user" />}
+      {loading && <SkeletonCard />}
       {error && <ErrorState message={error} />}
       {user && (
         <div className="mx-auto max-w-4xl">

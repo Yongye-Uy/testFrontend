@@ -2,12 +2,13 @@
 
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import { FormEvent, useState } from "react";
+import { useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { ErrorState } from "@/components/shared/error-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, inputClass } from "@/components/ui/field";
+import { useAuth } from "@/hooks/use-auth";
 import { api } from "@/lib/api-client";
 
 export function SettingsPage() {
@@ -43,12 +44,13 @@ export function SettingsPage() {
 }
 
 function SecuritySection() {
+  const { logout } = useAuth();
   const [form, setForm] = useState({ current: "", next: "", confirm: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  async function onSubmit(event: FormEvent) {
+  async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (form.next !== form.confirm) {
       setError("New password and confirmation do not match.");
@@ -61,6 +63,7 @@ function SecuritySection() {
       await api.users.changePassword(form.current, form.next, form.confirm);
       setSuccess(true);
       setForm({ current: "", next: "", confirm: "" });
+      setTimeout(() => void logout(), 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Password change failed");
     } finally {
@@ -75,12 +78,13 @@ function SecuritySection() {
           Security
         </h3>
         <p className="mt-0.5 text-xs text-ink-500">
-          Update your password. You will remain signed in after the change.
+          Update your password. You will be signed out and redirected to login
+          after the change.
         </p>
 
         {success && (
           <div className="mt-4 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800 ring-1 ring-emerald-200">
-            Password changed successfully.
+            Password changed successfully. Signing you out…
           </div>
         )}
 

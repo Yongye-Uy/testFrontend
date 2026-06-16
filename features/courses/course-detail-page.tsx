@@ -4,7 +4,7 @@ import { useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { BackLink } from "@/components/shared/back-link";
 import { ErrorState } from "@/components/shared/error-state";
-import { LoadingState } from "@/components/shared/loading-state";
+import { SkeletonCard } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { api } from "@/lib/api-client";
@@ -39,9 +39,7 @@ export function CourseDetailPage({ id }: { id: string }) {
           </Button>
         }
       />
-      {(course.loading || programs.loading) && (
-        <LoadingState label="Loading course" />
-      )}
+      {(course.loading || programs.loading) && <SkeletonCard />}
       {(course.error || programs.error) && (
         <ErrorState message={course.error || programs.error} />
       )}
