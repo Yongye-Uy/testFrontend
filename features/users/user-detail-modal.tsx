@@ -1,6 +1,10 @@
 "use client";
 
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import SwapHorizRoundedIcon from "@mui/icons-material/SwapHorizRounded";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Field, inputClass } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -88,23 +92,92 @@ function AdminDetailContent({
   user: User;
   onClose: () => void;
 }) {
+  const [panel, setPanel] = useState<"none" | "changeRole" | "resetPw">("none");
+  const [selectedRoleId, setSelectedRoleId] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+
+  const roles = useAsync(() => api.roles.list(), []);
+  const assignableRoles = (roles.data?.roles ?? []).filter(
+    (r) => r.name !== "super_admin",
+  );
+
+  function openPanel(next: "changeRole" | "resetPw") {
+    setPanel(next);
+    setError("");
+    setSuccessMsg("");
+    setSelectedRoleId("");
+    setAdminPassword("");
+  }
+
+  function closePanel() {
+    setPanel("none");
+    setError("");
+  }
+
+  async function handleChangeRole() {
+    if (!selectedRoleId) return;
+    setLoading(true);
+    setError("");
+    try {
+      await api.users.changeRole(user.id, selectedRoleId);
+      setSuccessMsg(
+        "Role changed. The user has been signed out automatically.",
+      );
+      setPanel("none");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Role change failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResetPassword() {
+    if (!adminPassword) return;
+    setLoading(true);
+    setError("");
+    try {
+      await api.users.resetPassword(user.id, adminPassword);
+      setSuccessMsg(`A password reset link has been sent to ${user.email}.`);
+      setPanel("none");
+      setAdminPassword("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Reset password failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <SummaryBanner user={user} />
 
-      <section>
-        <div className="grid gap-3 md:grid-cols-3">
+      <section className="space-y-3">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-gold-700">
+          Identity
+        </p>
+        <div className="grid gap-3 md:grid-cols-2">
           <DetailField label="Full name" value={user.full_name} />
           <DetailField label="Email" value={user.email} />
           <DetailField label="Role" value={prettyRole(user)} />
-          <DetailField label="Account ID" value={user.id} />
+          <DetailField label="Account ID" value={`#${user.id}`} />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-gold-700">
+          Account
+        </p>
+        <div className="grid gap-3 md:grid-cols-3">
           <DetailField
-            label="Account status"
+            label="Status"
             value={<StatusBadge value={user.status} />}
           />
           <DetailField label="Joined" value={formatDate(user.created_at)} />
           <DetailField
-            label="Invitation status"
+            label="Invitation"
             value={user.status === "pending" ? "Pending" : "Accepted"}
           />
           <DetailField
@@ -115,10 +188,114 @@ function AdminDetailContent({
         </div>
       </section>
 
-      <div className="flex justify-end">
-        <Button type="button" variant="secondary" onClick={onClose}>
-          Close
-        </Button>
+      {successMsg && (
+        <div className="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800 ring-1 ring-emerald-200">
+          {successMsg}
+        </div>
+      )}
+      {error && <ErrorState message={error} />}
+
+      {panel === "changeRole" && (
+        <section className="space-y-3 rounded-xl border border-ink-100 bg-cream-50 p-4">
+          <div className="flex items-center gap-2">
+            <SwapHorizRoundedIcon className="text-navy-700" fontSize="small" />
+            <p className="font-semibold text-navy-900">Change role</p>
+          </div>
+          <p className="text-sm text-ink-600">
+            This will clear all existing roles and assign the selected one. The
+            user will be signed out.
+          </p>
+          <Field label="New role">
+            <select
+              className={inputClass}
+              value={selectedRoleId}
+              onChange={(e) => setSelectedRoleId(e.target.value)}
+            >
+              <option value="">Select a role</option>
+              {assignableRoles.map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.name.replaceAll("_", " ")}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={closePanel}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              loading={loading}
+              disabled={!selectedRoleId}
+              onClick={() => void handleChangeRole()}
+            >
+              Confirm change
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {panel === "resetPw" && (
+        <section className="space-y-3 rounded-xl border border-ink-100 bg-cream-50 p-4">
+          <div className="flex items-center gap-2">
+            <LockOutlinedIcon className="text-navy-700" fontSize="small" />
+            <p className="font-semibold text-navy-900">Reset password</p>
+          </div>
+          <p className="text-sm text-ink-600">
+            Enter <strong>your</strong> admin password to send {user.full_name}{" "}
+            a password reset link by email.
+          </p>
+          <Field label="Your admin password">
+            <input
+              className={inputClass}
+              type="password"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              placeholder="Enter your password"
+            />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={closePanel}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              loading={loading}
+              disabled={!adminPassword}
+              onClick={() => void handleResetPassword()}
+            >
+              Send reset link
+            </Button>
+          </div>
+        </section>
+      )}
+
+      <div className="flex items-center justify-between">
+        {panel === "none" && (
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => openPanel("changeRole")}
+            >
+              <SwapHorizRoundedIcon fontSize="small" />
+              Change role
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => openPanel("resetPw")}
+            >
+              <LockOutlinedIcon fontSize="small" />
+              Reset password
+            </Button>
+          </div>
+        )}
+        <div className={panel !== "none" ? "ml-auto" : ""}>
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Close
+          </Button>
+        </div>
       </div>
     </div>
   );

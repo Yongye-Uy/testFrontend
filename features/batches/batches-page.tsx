@@ -19,7 +19,7 @@ import { Modal } from "@/components/ui/modal";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { programName } from "@/features/courses/course-utils";
 import { useAsync } from "@/features/shared/use-async";
-import { api } from "@/lib/api-client";
+import { api, ApiError } from "@/lib/api-client";
 import type { Batch } from "@/types/course";
 
 const NEW_PROGRAM_VALUE = "__new_program__";
@@ -40,6 +40,8 @@ export function BatchesPage() {
   const [archiveTarget, setArchiveTarget] = useState<Batch | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Batch | null>(null);
   const [tab, setTab] = useState<BatchTab>("active");
+  const [programsBlocked, setProgramsBlocked] = useState(false);
+  const [semestersBlocked, setSemestersBlocked] = useState(false);
   const batches = useAsync(
     () =>
       api.batches.list(
@@ -50,8 +52,28 @@ export function BatchesPage() {
       ),
     [],
   );
-  const programs = useAsync(() => api.programs.list(), []);
-  const semesters = useAsync(() => api.semesters.list(), []);
+  const programs = useAsync(
+    () =>
+      api.programs.list().catch((err) => {
+        if (err instanceof ApiError && err.status === 403) {
+          setProgramsBlocked(true);
+          return { programs: [] };
+        }
+        throw err;
+      }),
+    [],
+  );
+  const semesters = useAsync(
+    () =>
+      api.semesters.list().catch((err) => {
+        if (err instanceof ApiError && err.status === 403) {
+          setSemestersBlocked(true);
+          return { semesters: [] };
+        }
+        throw err;
+      }),
+    [],
+  );
 
   const rows = useMemo(
     () => batches.data?.batches ?? [],
@@ -82,21 +104,24 @@ export function BatchesPage() {
     const ids = rows.map((batch) => batch.id);
     if (ids.length === 0) return {} as Record<string, BatchMeta>;
 
-    const semesterList = await api.semesters.list();
     const semesterRefs = new Map<string, number>();
-
-    await Promise.all(
-      semesterList.semesters.map(async (semester) => {
-        try {
-          const response = await api.semesters.batches(semester.id);
-          response.batches.forEach((batch) => {
-            semesterRefs.set(batch.id, (semesterRefs.get(batch.id) ?? 0) + 1);
-          });
-        } catch {
-          // Keep the rest of the page working even if one semester relation call fails.
-        }
-      }),
-    );
+    try {
+      const semesterList = await api.semesters.list();
+      await Promise.all(
+        semesterList.semesters.map(async (semester) => {
+          try {
+            const response = await api.semesters.batches(semester.id);
+            response.batches.forEach((batch) => {
+              semesterRefs.set(batch.id, (semesterRefs.get(batch.id) ?? 0) + 1);
+            });
+          } catch {
+            // Keep the rest of the page working even if one semester relation call fails.
+          }
+        }),
+      );
+    } catch {
+      // semester.read unavailable — semester counts will show as 0
+    }
 
     const entries = await Promise.all(
       rows.map(async (batch) => {
@@ -157,13 +182,25 @@ export function BatchesPage() {
 
       <BatchTabs value={tab} counts={counts} onChange={setTab} />
 
-      {(batches.loading || programs.loading || semesters.loading) && (
-        <LoadingState label="Loading batches" />
-      )}
-      {(batches.error || programs.error || semesters.error) && (
-        <ErrorState
-          message={batches.error || programs.error || semesters.error}
-        />
+      {batches.loading && <LoadingState label="Loading batches" />}
+      {batches.error && <ErrorState message={batches.error} />}
+
+      {(programsBlocked || semestersBlocked) && (
+        <div className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+          <span className="font-semibold">Reference data limited —</span> grant{" "}
+          {programsBlocked && semestersBlocked ? (
+            <>
+              <code className="font-mono">program.read</code> and{" "}
+              <code className="font-mono">semester.read</code>
+            </>
+          ) : programsBlocked ? (
+            <code className="font-mono">program.read</code>
+          ) : (
+            <code className="font-mono">semester.read</code>
+          )}{" "}
+          to this role to enable generation batch creation and semester
+          assignment.
+        </div>
       )}
 
       {!batches.loading && !batches.error && rows.length === 0 && (
@@ -232,6 +269,11 @@ export function BatchesPage() {
         meta={deleteTarget ? (batchMeta.data?.[deleteTarget.id] ?? null) : null}
         open={Boolean(deleteTarget)}
         onClose={() => setDeleteTarget(null)}
+        onDeleted={async () => {
+          setDeleteTarget(null);
+          await reloadAll();
+          setTab("active");
+        }}
       />
     </>
   );
@@ -849,13 +891,18 @@ function ConfirmDeleteBatchModal({
   meta,
   open,
   onClose,
+  onDeleted,
 }: {
   batch: Batch | null;
   meta: BatchMeta | null;
   open: boolean;
   onClose: () => void;
+  onDeleted: () => Promise<void>;
 }) {
   const [confirmation, setConfirmation] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
   const relationshipBlockers = [
     { label: "Assigned to semesters", value: meta?.semesterCount ?? 0 },
     { label: "Assigned classes", value: meta?.classCount ?? 0 },
@@ -863,11 +910,27 @@ function ConfirmDeleteBatchModal({
   ];
   const hasRelations = relationshipBlockers.some((item) => item.value > 0);
   const matchesName = confirmation === batch?.name;
+  const canDelete = matchesName && !hasRelations;
 
   useEffect(() => {
     if (!open) return;
     setConfirmation("");
+    setError("");
   }, [batch?.id, open]);
+
+  async function handleDelete() {
+    if (!batch || !canDelete) return;
+    setLoading(true);
+    setError("");
+    try {
+      await api.batches.delete(batch.id);
+      await onDeleted();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete batch failed");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <Modal
@@ -878,10 +941,15 @@ function ConfirmDeleteBatchModal({
       footer={
         <>
           <Button onClick={onClose} variant="ghost">
-            Close
+            Cancel
           </Button>
-          <Button disabled variant="danger">
-            Delete not available
+          <Button
+            disabled={!canDelete}
+            loading={loading}
+            onClick={() => void handleDelete()}
+            variant="danger"
+          >
+            Delete batch
           </Button>
         </>
       }
@@ -889,12 +957,11 @@ function ConfirmDeleteBatchModal({
       <div className="space-y-4">
         <div className="rounded-2xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200">
           <p className="font-semibold">
-            Frontend rule check is ready, but the current backend API contract
-            still does not expose batch delete.
+            This batch will be permanently deleted and cannot be recovered.
           </p>
           <p className="mt-1">
-            Once the backend provides delete, this same dialog can enforce the
-            relationship rules before calling it.
+            Remove all semester assignments, classes, and students before
+            deleting.
           </p>
         </div>
         <div className="rounded-xl border border-ink-100 bg-cream-50 p-4 text-sm text-ink-700">
@@ -904,12 +971,16 @@ function ConfirmDeleteBatchModal({
               key={item.label}
             >
               <span>{item.label}</span>
-              <span className="font-semibold">{item.value}</span>
+              <span
+                className={`font-semibold ${item.value > 0 ? "text-rose-700" : "text-ink-700"}`}
+              >
+                {item.value}
+              </span>
             </p>
           ))}
           {!hasRelations && (
             <p className="mt-3 font-medium text-emerald-700">
-              This batch currently satisfies the delete safety rule.
+              No relationships found — this batch is safe to delete.
             </p>
           )}
         </div>
@@ -920,12 +991,7 @@ function ConfirmDeleteBatchModal({
             value={confirmation}
           />
         </Field>
-        {matchesName && !hasRelations && (
-          <div className="rounded-xl bg-cream-100 px-4 py-3 text-sm text-ink-600 ring-1 ring-ink-200">
-            Confirmation is correct. The remaining blocker is the missing delete
-            endpoint from the current backend contract.
-          </div>
-        )}
+        {error && <ErrorState message={error} />}
       </div>
     </Modal>
   );

@@ -21,7 +21,7 @@ import { Card } from "@/components/ui/card";
 import { Field, inputClass } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { api } from "@/lib/api-client";
+import { api, ApiError } from "@/lib/api-client";
 import { courseLabel } from "@/features/courses/course-utils";
 import { useAsync } from "@/features/shared/use-async";
 
@@ -44,22 +44,60 @@ export function ClassDetailPage({ id }: { id: string }) {
   const [assignError, setAssignError] = useState("");
   const [infoMessage, setInfoMessage] = useState("");
   const [activeTab, setActiveTab] = useState<ClassTab>("overview");
+  const [coursesBlocked, setCoursesBlocked] = useState(false);
+  const [semesterBlocked, setSemesterBlocked] = useState(false);
+  const [batchesBlocked, setBatchesBlocked] = useState(false);
+  const [usersBlocked, setUsersBlocked] = useState(false);
   const classItem = useAsync(() => api.classes.get(id), [id]);
-  const courses = useAsync(() => api.courses.list(), []);
+  const courses = useAsync(
+    () =>
+      api.courses.list().catch((err) => {
+        if (err instanceof ApiError && err.status === 403) {
+          setCoursesBlocked(true);
+          return { courses: [] };
+        }
+        throw err;
+      }),
+    [],
+  );
   const semester = useAsync(async () => {
     if (!classItem.data?.semester_id) return null;
-    return api.semesters.get(classItem.data.semester_id);
+    return api.semesters.get(classItem.data.semester_id).catch((err) => {
+      if (err instanceof ApiError && err.status === 403) {
+        setSemesterBlocked(true);
+        return null;
+      }
+      throw err;
+    });
   }, [classItem.data?.semester_id]);
-  const batches = useAsync(() => api.classes.batches(id), [id]);
+  const batches = useAsync(
+    () =>
+      api.classes.batches(id).catch((err) => {
+        if (err instanceof ApiError && err.status === 403) {
+          setBatchesBlocked(true);
+          return { batches: [] };
+        }
+        throw err;
+      }),
+    [id],
+  );
   const enrollments = useAsync(() => api.classes.enrollments(id), [id]);
   const users = useAsync(
     () =>
-      api.users.list(
-        new URLSearchParams([
-          ["limit", "500"],
-          ["offset", "0"],
-        ]),
-      ),
+      api.users
+        .list(
+          new URLSearchParams([
+            ["limit", "500"],
+            ["offset", "0"],
+          ]),
+        )
+        .catch((err) => {
+          if (err instanceof ApiError && err.status === 403) {
+            setUsersBlocked(true);
+            return { users: [], total: 0 };
+          }
+          throw err;
+        }),
     [],
   );
 
@@ -76,7 +114,8 @@ export function ClassDetailPage({ id }: { id: string }) {
       : null) ??
     classItem.data?.lecturer_id ??
     "Unassigned";
-  const hasAssignedLecturer = Boolean(classItem.data?.lecturer_id);
+  const hasAssignedLecturer =
+    Boolean(classItem.data?.lecturer_id) && classItem.data?.lecturer_id !== "0";
   const batchCount = batches.data?.batches.length ?? 0;
   const enrollmentCount = enrollments.data?.enrollments.length ?? 0;
   const heroDescription =
@@ -134,30 +173,33 @@ export function ClassDetailPage({ id }: { id: string }) {
         }
       />
 
-      {(classItem.loading ||
-        courses.loading ||
-        semester.loading ||
-        batches.loading ||
-        enrollments.loading ||
-        users.loading) && <LoadingState label="Loading class offering" />}
-      {(classItem.error ||
-        courses.error ||
-        semester.error ||
-        batches.error ||
-        enrollments.error ||
-        users.error ||
-        assignError) && (
+      {(classItem.loading || enrollments.loading) && (
+        <LoadingState label="Loading class offering" />
+      )}
+      {(classItem.error || enrollments.error || assignError) && (
         <ErrorState
-          message={
-            classItem.error ||
-            courses.error ||
-            semester.error ||
-            batches.error ||
-            enrollments.error ||
-            users.error ||
-            assignError
-          }
+          message={classItem.error || enrollments.error || assignError}
         />
+      )}
+      {(coursesBlocked ||
+        semesterBlocked ||
+        batchesBlocked ||
+        usersBlocked) && (
+        <div className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+          <span className="font-semibold">Some reference data limited —</span>{" "}
+          grant{" "}
+          <code className="font-mono">
+            {[
+              coursesBlocked && "course.read",
+              semesterBlocked && "semester.read",
+              batchesBlocked && "batch.read",
+              usersBlocked && "user.list",
+            ]
+              .filter(Boolean)
+              .join(", ")}
+          </code>{" "}
+          to enable full class detail, lecturer assignment, and batch info.
+        </div>
       )}
       {infoMessage && (
         <div className="mb-5 rounded-xl bg-navy-50 px-4 py-3 text-sm text-navy-800 ring-1 ring-navy-100">

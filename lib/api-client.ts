@@ -32,7 +32,6 @@ import type {
   InviteUserEntry,
   LoginResponse,
   CompleteInvitationResponse,
-  ResetPasswordResponse,
   User,
   UsersResponse,
 } from "@/types/user";
@@ -40,7 +39,7 @@ import type {
 type ServiceName = "user" | "course" | "assessment" | "integration";
 
 const userBaseUrl = "/api";
-const courseBaseUrl = "/api/courses/v1";
+const courseBaseUrl = "/api";
 const assessmentBaseUrl = "/api/assessments";
 const integrationBaseUrl = "/api";
 
@@ -604,6 +603,16 @@ export const api = {
         method: "POST",
         ...jsonBody({ refresh_token }),
       }),
+    completePasswordReset: (token: string, newPassword: string) =>
+      request<{ message?: string }>(
+        "user",
+        "/auth/reset-password",
+        {
+          method: "POST",
+          ...jsonBody({ token, new_password: newPassword }),
+        },
+        false,
+      ),
     completeInvitation: (
       token: string,
       password: string,
@@ -719,22 +728,29 @@ export const api = {
         method: "PATCH",
         ...jsonBody({ id: Number(id), status }),
       }),
-    resetPassword: (
-      id: string,
-      body: {
-        actor_password: string;
-        auto_generate: boolean;
-        temporary_password?: string;
-      },
-    ) => {
-      void body;
-      return Promise.reject(
-        new ApiError(
-          501,
-          `Reset password is not exposed by the current user-service contract for user ${id}.`,
-        ),
-      ) as Promise<ResetPasswordResponse>;
-    },
+    resetPassword: (id: string, adminPassword: string) =>
+      request<{ message?: string }>("user", `/users/${id}/reset-password`, {
+        method: "POST",
+        ...jsonBody({ admin_password: adminPassword }),
+      }),
+    changeRole: (userId: string, roleId: string) =>
+      request<{ success?: boolean }>("user", `/users/${userId}/role`, {
+        method: "PATCH",
+        ...jsonBody({ role_id: Number(roleId) }),
+      }),
+    changePassword: (
+      currentPassword: string,
+      newPassword: string,
+      confirmPassword: string,
+    ) =>
+      request<{ success?: boolean }>("user", "/users/me/change-password", {
+        method: "POST",
+        ...jsonBody({
+          current_password: currentPassword,
+          new_password: newPassword,
+          confirm_password: confirmPassword,
+        }),
+      }),
     getPermissions: (id: string) =>
       request<{ permissions: string[] }>(
         "user",
@@ -1139,6 +1155,10 @@ export const api = {
           method: "DELETE",
         },
       ),
+    delete: (id: string) =>
+      request<{ success?: boolean }>("course", `/batches/${id}`, {
+        method: "DELETE",
+      }),
   },
   assessments: {
     list: () =>
