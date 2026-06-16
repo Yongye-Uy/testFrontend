@@ -18,9 +18,11 @@ import type {
   Batch,
   BatchDetail,
   BatchStudent,
+  ClassLesson,
   ClassOffering,
   Course,
   Enrollment,
+  LessonItem,
   Program,
   Semester,
   SemesterBatch,
@@ -455,6 +457,51 @@ function normalizeEnrollment(raw: unknown): Enrollment {
   };
 }
 
+function normalizeLessonItem(raw: unknown): LessonItem {
+  const value = (raw ?? {}) as Record<string, unknown>;
+  const itemType = String(value.item_type ?? "");
+  const assessment = (value.assessment ?? {}) as Record<string, unknown>;
+  const material = (value.material ?? {}) as Record<string, unknown>;
+  const link = (material.link ?? {}) as Record<string, unknown>;
+  const isAssessment = itemType === "assessment";
+  return {
+    id: toStringId(value.id),
+    item_type: itemType,
+    item_id: toStringId(value.item_id),
+    title: String(
+      (isAssessment ? assessment.title : material.title) ?? "Untitled",
+    ),
+    status: isAssessment ? String(assessment.status ?? "draft") : null,
+    question_count: isAssessment
+      ? (toNumber(assessment.question_count) ?? 0)
+      : null,
+    material_type: isAssessment ? null : String(material.type ?? ""),
+    is_unlocked: Boolean(value.is_unlocked),
+    pass_threshold_percent: isAssessment
+      ? (toNumber(assessment.pass_threshold_percent) ?? null)
+      : null,
+    time_limit_seconds: isAssessment
+      ? (toNumber(assessment.time_limit_seconds) ?? null)
+      : null,
+    description: String(
+      (isAssessment ? assessment.description : material.description) ?? "",
+    ),
+    link_url:
+      !isAssessment && link.external_url ? String(link.external_url) : null,
+  };
+}
+
+function normalizeLesson(raw: unknown): ClassLesson {
+  const value = (raw ?? {}) as Record<string, unknown>;
+  return {
+    id: toStringId(value.id),
+    title: String(value.title ?? "Untitled lesson"),
+    lesson_order: toNumber(value.lesson_order) ?? 0,
+    item_count: toNumber(value.item_count) ?? 0,
+    items: [],
+  };
+}
+
 function normalizeInviteResult(raw: unknown) {
   const value = (raw ?? {}) as Record<string, unknown>;
   return {
@@ -678,6 +725,16 @@ export const api = {
       request<{ user: unknown }>("user", `/users/${id}`).then((response) =>
         normalizeUser(response.user),
       ),
+    // Resolve display names for a set of user IDs. Backed by GetUsersByIds
+    // (POST /users/ids), which has no permission gate, so roles without
+    // user.list (e.g. lecturers) can still resolve their roster's names.
+    byIds: (ids: string[]) =>
+      request<{ users?: unknown[] }>("user", "/users/ids", {
+        method: "POST",
+        ...jsonBody({ ids: ids.map((id) => Number(id)) }),
+      }).then((response) => ({
+        users: (response.users ?? []).map(normalizeUser),
+      })),
     findByEmail: (email: string) =>
       request<{ user: unknown }>(
         "user",
@@ -1043,6 +1100,134 @@ export const api = {
         `/classes/${id}/enrollments`,
       ).then((response) => ({
         enrollments: (response.enrollments ?? []).map(normalizeEnrollment),
+      })),
+  },
+  lessons: {
+    listForClass: (classId: string) =>
+      request<{ lessons?: unknown[] }>(
+        "course",
+        `/classes/${classId}/lessons`,
+      ).then((response) => ({
+        lessons: (response.lessons ?? []).map(normalizeLesson),
+      })),
+    create: (classId: string, title: string) =>
+      request<{ lesson?: unknown }>("course", `/classes/${classId}/lessons`, {
+        method: "POST",
+        ...jsonBody({ class_id: Number(classId), title }),
+      }).then((response) => normalizeLesson(response.lesson)),
+    archived: (classId: string) =>
+      request<{ lessons?: unknown[] }>(
+        "course",
+        `/classes/${classId}/lessons/archived`,
+      ).then((response) => ({
+        lessons: (response.lessons ?? []).map(normalizeLesson),
+      })),
+    reuseLesson: (classId: string, lessonId: string) =>
+      request<{ lesson?: unknown }>(
+        "course",
+        `/classes/${classId}/lessons/reuse`,
+        {
+          method: "POST",
+          ...jsonBody({
+            class_id: Number(classId),
+            lesson_id: Number(lessonId),
+          }),
+        },
+      ).then((response) => normalizeLesson(response.lesson)),
+    addMaterial: (
+      classId: string,
+      lessonId: string,
+      body: {
+        title: string;
+        description?: string;
+        type: string;
+        linkUrl?: string;
+      },
+    ) =>
+      request<{ lesson_item?: unknown }>(
+        "course",
+        `/classes/${classId}/lessons/${lessonId}/materials`,
+        {
+          method: "POST",
+          ...jsonBody({
+            class_id: Number(classId),
+            lesson_id: Number(lessonId),
+            title: body.title,
+            description: body.description ?? "",
+            type: body.type,
+            ...(body.type === "link" && body.linkUrl
+              ? { link: { external_url: body.linkUrl, link_title: body.title } }
+              : {}),
+          }),
+        },
+      ).then((response) => normalizeLessonItem(response.lesson_item)),
+    addAssessment: (classId: string, lessonId: string, assessmentId: string) =>
+      request<{ lesson_item?: unknown }>(
+        "course",
+        `/classes/${classId}/lessons/${lessonId}/assessments`,
+        {
+          method: "POST",
+          ...jsonBody({
+            class_id: Number(classId),
+            lesson_id: Number(lessonId),
+            assessment_id: Number(assessmentId),
+          }),
+        },
+      ).then((response) => normalizeLessonItem(response.lesson_item)),
+    remove: (classId: string, lessonId: string) =>
+      request<unknown>("course", `/classes/${classId}/lessons/${lessonId}`, {
+        method: "DELETE",
+      }),
+    deleteItem: (classId: string, lessonItemId: string) =>
+      request<unknown>(
+        "course",
+        `/classes/${classId}/lesson-items/${lessonItemId}`,
+        { method: "DELETE" },
+      ),
+    unlockItem: (classId: string, lessonItemId: string) =>
+      request<{ lesson_item?: unknown }>(
+        "course",
+        `/classes/${classId}/lesson-items/${lessonItemId}/unlock`,
+        {
+          method: "POST",
+          ...jsonBody({
+            class_id: Number(classId),
+            lesson_item_id: Number(lessonItemId),
+          }),
+        },
+      ).then((response) => normalizeLessonItem(response.lesson_item)),
+    reorderLessons: (classId: string, orderedLessonIds: string[]) =>
+      request<unknown>("course", `/classes/${classId}/lessons/reorder`, {
+        method: "POST",
+        ...jsonBody({
+          class_id: Number(classId),
+          ordered_lesson_ids: orderedLessonIds.map((value) => Number(value)),
+        }),
+      }),
+    reorderItems: (
+      classId: string,
+      lessonId: string,
+      orderedItemIds: string[],
+    ) =>
+      request<unknown>(
+        "course",
+        `/classes/${classId}/lessons/${lessonId}/items/reorder`,
+        {
+          method: "POST",
+          ...jsonBody({
+            class_id: Number(classId),
+            lesson_id: Number(lessonId),
+            ordered_item_ids: orderedItemIds.map((value) => Number(value)),
+          }),
+        },
+      ),
+    get: (classId: string, lessonId: string) =>
+      request<{ lesson?: unknown; items?: unknown[] }>(
+        "course",
+        `/classes/${classId}/lessons/${lessonId}`,
+      ).then((response) => ({
+        ...normalizeLesson(response.lesson),
+        items: (response.items ?? []).map(normalizeLessonItem),
       })),
   },
   batches: {

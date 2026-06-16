@@ -10,6 +10,7 @@ import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownR
 import KeyboardArrowRightRoundedIcon from "@mui/icons-material/KeyboardArrowRightRounded";
 import LinkRoundedIcon from "@mui/icons-material/LinkRounded";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 import { PageHeader } from "@/components/layout/page-header";
 import { BackLink } from "@/components/shared/back-link";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -22,6 +23,7 @@ import { Modal } from "@/components/ui/modal";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { api, ApiError } from "@/lib/api-client";
 import { courseLabel, programName } from "@/features/courses/course-utils";
+import { AssignLecturerModal } from "@/features/classes/assign-lecturer-modal";
 import { useAsync } from "@/features/shared/use-async";
 import { SemesterModal } from "./semesters-page";
 import type { Batch, ClassOffering } from "@/types/course";
@@ -36,6 +38,10 @@ export function SemesterDetailPage({ id }: { id: string }) {
   const [batchClassTarget, setBatchClassTarget] = useState<{
     id: string;
     name: string;
+  } | null>(null);
+  const [lecturerTarget, setLecturerTarget] = useState<{
+    id: string;
+    lecturerId: string | null;
   } | null>(null);
   const [activeTab, setActiveTab] = useState<DetailTab>("offerings");
   const [actionError, setActionError] = useState("");
@@ -88,6 +94,20 @@ export function SemesterDetailPage({ id }: { id: string }) {
         }),
     [],
   );
+  const users = useAsync(
+    () =>
+      api.users.list(
+        new URLSearchParams([
+          ["limit", "500"],
+          ["offset", "0"],
+        ]),
+      ),
+    [],
+  );
+  const userById = useMemo(
+    () => new Map((users.data?.users ?? []).map((user) => [user.id, user])),
+    [users.data?.users],
+  );
   const archived = semester.data?.status === "archived";
   const editable = semester.data?.status === "draft";
   const classCount = classes.data?.classes.length ?? 0;
@@ -139,6 +159,7 @@ export function SemesterDetailPage({ id }: { id: string }) {
       semester.reload(),
       semesterBatches.reload(),
       allBatches.reload(),
+      users.reload(),
     ]);
   }
 
@@ -327,24 +348,48 @@ export function SemesterDetailPage({ id }: { id: string }) {
                             const course = courses.data?.courses.find(
                               (row) => row.id === item.course_id,
                             );
+                            const lecturerName = item.lecturer_id
+                              ? (userById.get(item.lecturer_id)?.full_name ??
+                                `User ${item.lecturer_id}`)
+                              : null;
                             return (
                               <tr key={item.id}>
                                 <td className="px-4 py-3 font-semibold text-navy-900">
                                   {courseLabel(course)}
                                 </td>
                                 <td className="px-4 py-3 text-ink-600">
-                                  {item.lecturer_id || "Unassigned"}
+                                  {lecturerName ?? (
+                                    <span className="text-ink-400">
+                                      Unassigned
+                                    </span>
+                                  )}
                                 </td>
                                 <td className="px-4 py-3">
                                   <StatusBadge value={item.status} />
                                 </td>
                                 <td className="px-4 py-3 text-right">
-                                  <Link
-                                    href={`/classes/${item.id}`}
-                                    className="inline-flex min-h-9 items-center rounded-lg px-3 py-2 text-[13px] font-medium text-navy-700 transition hover:bg-cream-100"
-                                  >
-                                    Open class
-                                  </Link>
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      onClick={() =>
+                                        setLecturerTarget({
+                                          id: item.id,
+                                          lecturerId: item.lecturer_id,
+                                        })
+                                      }
+                                      leftIcon={
+                                        <SchoolOutlinedIcon fontSize="small" />
+                                      }
+                                    >
+                                      {item.lecturer_id ? "Reassign" : "Assign"}
+                                    </Button>
+                                    <Link
+                                      href={`/classes/${item.id}`}
+                                      className="inline-flex min-h-9 items-center rounded-lg px-3 py-2 text-[13px] font-medium text-navy-700 transition hover:bg-cream-100"
+                                    >
+                                      Open class
+                                    </Link>
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -513,6 +558,17 @@ export function SemesterDetailPage({ id }: { id: string }) {
         programs={programs.data?.programs ?? []}
         onClose={() => setBatchClassTarget(null)}
         onDone={reloadAll}
+      />
+      <AssignLecturerModal
+        classId={lecturerTarget?.id ?? ""}
+        currentLecturerId={lecturerTarget?.lecturerId ?? null}
+        open={lecturerTarget !== null}
+        onClose={() => setLecturerTarget(null)}
+        onDone={async () => {
+          setLecturerTarget(null);
+          await reloadAll();
+        }}
+        onError={(message) => setActionError(message)}
       />
     </>
   );

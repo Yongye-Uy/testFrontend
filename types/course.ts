@@ -33,6 +33,29 @@ export type ClassOffering = {
   created_by: string;
 };
 
+export type LessonItem = {
+  id: string;
+  item_type: string; // "material" | "assessment"
+  item_id: string;
+  title: string;
+  status: string | null;
+  question_count: number | null;
+  material_type: string | null;
+  is_unlocked: boolean;
+  pass_threshold_percent: number | null;
+  time_limit_seconds: number | null;
+  description: string;
+  link_url: string | null;
+};
+
+export type ClassLesson = {
+  id: string;
+  title: string;
+  lesson_order: number;
+  item_count: number;
+  items: LessonItem[];
+};
+
 export type BatchType = "generation" | "general";
 export type BatchStatus = "active" | "pending" | "archived";
 
