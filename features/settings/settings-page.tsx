@@ -79,13 +79,12 @@ function SecuritySection() {
           Security
         </h3>
         <p className="mt-0.5 text-xs text-ink-500">
-          Update your password. You will be signed out and redirected to login
-          after the change.
+          Update your password.
         </p>
 
         {success && (
           <div className="mt-4 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800 ring-1 ring-emerald-200">
-            Password changed successfully. Signing you out…
+            Password changed successfully.
           </div>
         )}
 
