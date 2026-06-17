@@ -89,7 +89,6 @@ const ALL_SIDEBAR_ITEMS: SidebarItem[] = [
     href: "/storage",
     icon: StorageOutlinedIcon,
     permission: "config.read",
-    comingSoon: true,
   },
   {
     label: "Observability",

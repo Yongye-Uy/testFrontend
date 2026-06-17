@@ -602,6 +602,32 @@ function withQuery(path: string, params?: URLSearchParams) {
   return query ? `${path}?${query}` : path;
 }
 
+export interface StorageTypeStat {
+  material_type: string;
+  file_count: string;
+}
+export interface StorageStatsResponse {
+  type_stats: StorageTypeStat[];
+  total_files: string;
+}
+export interface StorageFileItem {
+  material_id: number;
+  file_name: string;
+  file_object_key: string;
+  mime_type: string;
+  material_type: string;
+  created_at: string;
+  course_code: string;
+  course_title: string;
+  lesson_title: string;
+}
+export interface StorageFilesResponse {
+  files: StorageFileItem[];
+  total: string;
+  page: number;
+  page_size: number;
+}
+
 export const api = {
   auth: {
     login: (email: string, password: string) =>
@@ -1510,6 +1536,13 @@ export const api = {
         method: "POST",
         ...jsonBody({ service }),
       }),
+  },
+
+  storage: {
+    stats: () =>
+      request<StorageStatsResponse>("course", "/storage/stats"),
+    files: (page: number, pageSize = 20) =>
+      request<StorageFilesResponse>("course", `/storage/files?page=${page}&page_size=${pageSize}`),
   },
 };
 
