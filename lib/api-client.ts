@@ -174,6 +174,52 @@ async function refreshAccessToken(): Promise<string | null> {
   return refreshInFlight;
 }
 
+// Proactive background refresh that shares the refreshInFlight lock with the
+// 401 interceptor. Unlike refreshAccessToken it does NOT clear the session on
+// failure — a network blip during a background probe should not log the user out.
+export async function probeRefresh(): Promise<void> {
+  if (refreshInFlight) {
+    await refreshInFlight.catch(() => undefined);
+    return;
+  }
+
+  const refreshToken = getRefreshToken();
+  const session = getStoredSession();
+  if (!refreshToken || !session) return;
+
+  refreshInFlight = (async () => {
+    try {
+      const response = await request<{
+        access_token: string;
+        refresh_token: string;
+      }>(
+        "user",
+        "/auth/refresh",
+        {
+          method: "POST",
+          ...jsonBody({ refresh_token: refreshToken }),
+        },
+        false,
+        true,
+      );
+
+      storeSession({
+        accessToken: response.access_token,
+        refreshToken: response.refresh_token,
+        user: session.user,
+      });
+
+      return response.access_token;
+    } catch {
+      return null;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  await refreshInFlight.catch(() => undefined);
+}
+
 function jsonBody(body: unknown): RequestInit {
   return { body: JSON.stringify(body) };
 }
@@ -800,18 +846,18 @@ export const api = {
       newPassword: string,
       confirmPassword: string,
     ) =>
-      request<{ success?: boolean; access_token?: string; refresh_token?: string }>(
-        "user",
-        "/users/me/change-password",
-        {
-          method: "POST",
-          ...jsonBody({
-            current_password: currentPassword,
-            new_password: newPassword,
-            confirm_password: confirmPassword,
-          }),
-        },
-      ),
+      request<{
+        success?: boolean;
+        access_token?: string;
+        refresh_token?: string;
+      }>("user", "/users/me/change-password", {
+        method: "POST",
+        ...jsonBody({
+          current_password: currentPassword,
+          new_password: newPassword,
+          confirm_password: confirmPassword,
+        }),
+      }),
     getPermissions: (id: string) =>
       request<{ permissions: string[] }>(
         "user",
