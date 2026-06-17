@@ -9,7 +9,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { api } from "@/lib/api-client";
+import { api, probeRefresh } from "@/lib/api-client";
 import {
   clearPendingAuth,
   clearStoredSession,
@@ -70,9 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const interval = window.setInterval(
       () => {
-        const refreshToken = getRefreshToken();
-        if (!refreshToken) return;
-        void api.auth.refresh(refreshToken).catch(() => undefined);
+        void probeRefresh();
       },
       10 * 60 * 1000,
     );

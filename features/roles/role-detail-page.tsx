@@ -2,7 +2,10 @@
 
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import KeyboardArrowRightRoundedIcon from "@mui/icons-material/KeyboardArrowRightRounded";
-import { useMemo, useState } from "react";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import UnfoldLessRoundedIcon from "@mui/icons-material/UnfoldLessRounded";
+import UnfoldMoreRoundedIcon from "@mui/icons-material/UnfoldMoreRounded";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { BackLink } from "@/components/shared/back-link";
 import { CapabilityNotice } from "@/components/shared/capability-notice";
@@ -25,6 +28,7 @@ export function RoleDetailPage({ id }: { id: string }) {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
     {},
   );
+  const [search, setSearch] = useState("");
   const role = roles.data?.roles.find((item) => item.id === id);
 
   const assignedPermissionIds = useMemo(
@@ -44,11 +48,55 @@ export function RoleDetailPage({ id }: { id: string }) {
     return Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b));
   }, [permissions.data?.permissions]);
 
+  // Filter groups and their permissions by search query
+  const filteredGroups = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return groupedPermissions;
+    return groupedPermissions
+      .map(
+        ([resource, perms]) =>
+          [
+            resource,
+            perms.filter(
+              (p) =>
+                p.code.toLowerCase().includes(q) ||
+                resource.toLowerCase().includes(q) ||
+                (p.description ?? "").toLowerCase().includes(q),
+            ),
+          ] as [string, typeof perms],
+      )
+      .filter(([, perms]) => perms.length > 0);
+  }, [groupedPermissions, search]);
+
+  // Auto-expand matching groups when searching
+  useEffect(() => {
+    if (!search.trim()) return;
+    setExpandedGroups((current) => {
+      const next = { ...current };
+      filteredGroups.forEach(([resource]) => {
+        next[resource] = true;
+      });
+      return next;
+    });
+  }, [search, filteredGroups]);
+
   function toggleGroup(resource: string) {
     setExpandedGroups((current) => ({
       ...current,
       [resource]: !current[resource],
     }));
+  }
+
+  function expandAll() {
+    const next: Record<string, boolean> = {};
+    groupedPermissions.forEach(([resource]) => {
+      next[resource] = true;
+    });
+    setExpandedGroups(next);
+  }
+
+  function collapseAll() {
+    setExpandedGroups({});
   }
 
   async function assignPermission(permissionId: string) {
@@ -157,7 +205,7 @@ export function RoleDetailPage({ id }: { id: string }) {
           </Card>
 
           <Card className="p-6">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-gold-700">
                   Permissions
@@ -166,10 +214,51 @@ export function RoleDetailPage({ id }: { id: string }) {
                   Assign permissions to this role
                 </h3>
                 <p className="mt-1 text-sm text-ink-500">
-                  Permissions are grouped by resource. Click a group to expand
-                  it.
+                  Click a group header to expand it, or use search to find a
+                  specific permission.
                 </p>
               </div>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  onClick={expandAll}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold text-ink-600 transition hover:bg-cream-100 hover:text-navy-900"
+                >
+                  <UnfoldMoreRoundedIcon sx={{ fontSize: 16 }} />
+                  Expand all
+                </button>
+                <button
+                  type="button"
+                  onClick={collapseAll}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold text-ink-600 transition hover:bg-cream-100 hover:text-navy-900"
+                >
+                  <UnfoldLessRoundedIcon sx={{ fontSize: 16 }} />
+                  Collapse all
+                </button>
+              </div>
+            </div>
+
+            {/* Search input */}
+            <div className="relative mt-4">
+              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-ink-400">
+                <SearchRoundedIcon sx={{ fontSize: 18 }} />
+              </span>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search permissions by code, resource, or description…"
+                className="w-full rounded-xl border border-ink-200 bg-white py-2.5 pl-9 pr-4 text-sm text-navy-900 placeholder:text-ink-400 focus:border-navy-400 focus:outline-none focus:ring-2 focus:ring-navy-200"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-ink-400 hover:text-navy-700"
+                >
+                  Clear
+                </button>
+              )}
             </div>
             {role.is_system && (
               <div className="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
@@ -196,9 +285,17 @@ export function RoleDetailPage({ id }: { id: string }) {
                 />
               </div>
             )}
-            {groupedPermissions.length > 0 && (
+            {groupedPermissions.length > 0 && filteredGroups.length === 0 && (
+              <div className="mt-4">
+                <EmptyState
+                  title="No permissions match"
+                  description={`Nothing found for "${search}". Try a different keyword or clear the search.`}
+                />
+              </div>
+            )}
+            {filteredGroups.length > 0 && (
               <div className="mt-5 space-y-2">
-                {groupedPermissions.map(([resource, perms]) => {
+                {filteredGroups.map(([resource, perms]) => {
                   const isExpanded = expandedGroups[resource] ?? false;
                   const assignedCount = perms.filter((p) =>
                     assignedPermissionIds.has(p.id),

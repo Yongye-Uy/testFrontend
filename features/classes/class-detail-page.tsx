@@ -2,19 +2,28 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import AutoStoriesOutlinedIcon from "@mui/icons-material/AutoStoriesOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import Groups2OutlinedIcon from "@mui/icons-material/Groups2Outlined";
 import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
+import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
+import KeyboardArrowRightRoundedIcon from "@mui/icons-material/KeyboardArrowRightRounded";
+import LinkRoundedIcon from "@mui/icons-material/LinkRounded";
+import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
+import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
 import { PageHeader } from "@/components/layout/page-header";
 import { BackLink } from "@/components/shared/back-link";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
+import { LoadingState } from "@/components/shared/loading-state";
 import { SkeletonCard } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -22,10 +31,12 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { api, ApiError } from "@/lib/api-client";
 import { courseLabel } from "@/features/courses/course-utils";
 import { AssignLecturerModal } from "@/features/classes/assign-lecturer-modal";
+import { Modal } from "@/components/ui/modal";
 import { LecturerClassDetailPage } from "@/features/classes/lecturer-class-detail-page";
 import { useAsync } from "@/features/shared/use-async";
 import { useAuth } from "@/hooks/use-auth";
 import { isLecturer } from "@/lib/auth";
+import type { LessonItem } from "@/types/course";
 
 type ClassTab =
   | "overview"
@@ -46,6 +57,10 @@ function DirectorClassDetailPage({ id }: { id: string }) {
   const [assignError, setAssignError] = useState("");
   const [infoMessage, setInfoMessage] = useState("");
   const [activeTab, setActiveTab] = useState<ClassTab>("overview");
+  const [expandedLessons, setExpandedLessons] = useState<
+    Record<string, boolean>
+  >({});
+  const [previewItem, setPreviewItem] = useState<LessonItem | null>(null);
   const [coursesBlocked, setCoursesBlocked] = useState(false);
   const [semesterBlocked, setSemesterBlocked] = useState(false);
   const [batchesBlocked, setBatchesBlocked] = useState(false);
@@ -84,6 +99,15 @@ function DirectorClassDetailPage({ id }: { id: string }) {
     [id],
   );
   const enrollments = useAsync(() => api.classes.enrollments(id), [id]);
+  const lessons = useAsync(async () => {
+    const res = await api.lessons.listForClass(id);
+    const detailed = await Promise.all(
+      res.lessons.map((lesson) =>
+        api.lessons.get(id, lesson.id).catch(() => ({ ...lesson, items: [] })),
+      ),
+    );
+    return detailed.sort((a, b) => a.lesson_order - b.lesson_order);
+  }, [id]);
   const users = useAsync(
     () =>
       api.users
@@ -110,6 +134,37 @@ function DirectorClassDetailPage({ id }: { id: string }) {
     () => new Map((users.data?.users ?? []).map((user) => [user.id, user])),
     [users.data?.users],
   );
+  useEffect(() => {
+    const lessonList = lessons.data ?? [];
+    if (lessonList.length === 0) return;
+    setExpandedLessons((current) => {
+      const next = { ...current };
+      lessonList.forEach((lesson, index) => {
+        if (next[lesson.id] === undefined) next[lesson.id] = index === 0;
+      });
+      return next;
+    });
+  }, [lessons.data]);
+
+  const lessonStats = useMemo(() => {
+    const items = (lessons.data ?? []).flatMap((lesson) => lesson.items);
+    const total = items.length;
+    const unlocked = items.filter((item) => item.is_unlocked).length;
+    return {
+      totalItems: total,
+      unlockedItems: unlocked,
+      deliveredPct: total ? Math.round((unlocked / total) * 100) : 0,
+      publishedLessons: (lessons.data ?? []).filter(
+        (lesson) =>
+          lesson.items.length > 0 &&
+          lesson.items.every((item) => item.is_unlocked),
+      ).length,
+      totalLessons: lessons.data?.length ?? 0,
+    };
+  }, [lessons.data]);
+
+  const firstBatchName = batches.data?.batches[0]?.name ?? null;
+
   const lecturerName =
     (classItem.data?.lecturer_id
       ? userById.get(classItem.data.lecturer_id)?.full_name
@@ -228,36 +283,28 @@ function DirectorClassDetailPage({ id }: { id: string }) {
                     {heroDescription}
                   </p>
                 </div>
-                <div className="rounded-3xl border border-cream-50/20 bg-cream-50/10 px-6 py-5 text-right">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-gold-300">
-                    Enrollment records
-                  </p>
-                  <p className="mt-2 text-[1.4rem] font-semibold leading-8 text-cream-50">
-                    {enrollmentCount}
-                  </p>
-                </div>
+                <ProgressRing
+                  value={lessonStats.deliveredPct}
+                  label="Class Avg"
+                />
               </div>
             </div>
-            <div className="grid gap-4 p-5 md:grid-cols-3">
+            <div className="grid divide-y divide-ink-100 md:grid-cols-3 md:divide-x md:divide-y-0">
               <HeroMetric
                 icon={<Groups2OutlinedIcon fontSize="small" />}
                 label="Students"
                 value={String(enrollmentCount)}
-                helper={
-                  batchCount > 0
-                    ? `${batchCount} attached batch${batchCount === 1 ? "" : "es"}`
-                    : "Waiting for batch or direct student assignment"
-                }
+                helper={firstBatchName ?? "Batch not assigned"}
               />
               <HeroMetric
-                icon={<MenuBookOutlinedIcon fontSize="small" />}
-                label="Batches"
-                value={String(batchCount)}
-                helper={
-                  batchCount > 0
-                    ? "Visible from current backend reads"
-                    : "Attach batches from semester detail"
+                icon={<AutoStoriesOutlinedIcon fontSize="small" />}
+                label="Lessons"
+                value={
+                  lessonStats.totalLessons > 0
+                    ? `${lessonStats.publishedLessons} / ${lessonStats.totalLessons}`
+                    : "—"
                 }
+                helper="published"
               />
               <HeroMetric
                 icon={<SchoolOutlinedIcon fontSize="small" />}
@@ -272,7 +319,11 @@ function DirectorClassDetailPage({ id }: { id: string }) {
             </div>
           </Card>
 
-          <ClassTabs active={activeTab} onChange={setActiveTab} />
+          <ClassTabs
+            active={activeTab}
+            onChange={setActiveTab}
+            enrollmentCount={enrollmentCount}
+          />
 
           {activeTab === "overview" && (
             <>
@@ -285,31 +336,45 @@ function DirectorClassDetailPage({ id }: { id: string }) {
                     <SummaryTile
                       tone="success"
                       icon={<TaskAltOutlinedIcon fontSize="small" />}
-                      label="Assigned lecturer"
-                      value={classItem.data.lecturer_id ? "Ready" : "Pending"}
+                      label="Completed"
+                      value={String(batchCount)}
                       helper={
-                        classItem.data.lecturer_id
-                          ? "Lecturer assignment is complete."
-                          : "Use Assign lecturer to choose one."
+                        batchCount > 0
+                          ? `${batchCount} batch${batchCount === 1 ? "" : "es"} attached`
+                          : "No batches attached yet"
                       }
                     />
                     <SummaryTile
                       tone="danger"
                       icon={<InsightsOutlinedIcon fontSize="small" />}
                       label="At risk"
-                      value={batchCount === 0 ? "1" : "0"}
+                      value={
+                        batchCount === 0 || !classItem.data.lecturer_id
+                          ? "1"
+                          : "0"
+                      }
                       helper={
                         batchCount === 0
-                          ? "No batch is attached yet."
-                          : "Batch attachment exists."
+                          ? "No batch attached."
+                          : !classItem.data.lecturer_id
+                            ? "Lecturer not assigned."
+                            : "No issues detected."
                       }
                     />
                     <SummaryTile
                       tone="warning"
                       icon={<AutoStoriesOutlinedIcon fontSize="small" />}
                       label="Lessons live"
-                      value="Upcoming"
-                      helper="Lesson publishing is a later lecturer workflow."
+                      value={
+                        lessonStats.totalItems > 0
+                          ? `${lessonStats.unlockedItems}/${lessonStats.totalItems}`
+                          : "0"
+                      }
+                      helper={
+                        lessonStats.totalItems > 0
+                          ? "items unlocked for students"
+                          : "No lesson items yet"
+                      }
                     />
                   </div>
                 </Card>
@@ -324,14 +389,13 @@ function DirectorClassDetailPage({ id }: { id: string }) {
                       value={semester.data?.title ?? classItem.data.semester_id}
                     />
                     <FactRow
-                      label="Course code"
-                      value={currentCourse?.code ?? "n/a"}
+                      label="Batch"
+                      value={firstBatchName ?? "Not assigned"}
                     />
                     <FactRow
                       label="Status"
                       valueNode={<StatusBadge value={classItem.data.status} />}
                     />
-                    <FactRow label="Lecturer" value={lecturerName} />
                   </div>
                 </Card>
               </div>
@@ -434,18 +498,265 @@ function DirectorClassDetailPage({ id }: { id: string }) {
             </>
           )}
 
-          {activeTab !== "overview" && (
+          {activeTab === "lessons" && (
+            <>
+              <div className="mb-4 flex items-end justify-between gap-3">
+                <div>
+                  <h2 className="font-serif-display text-[1.25rem] font-semibold leading-8 text-navy-900">
+                    Lessons
+                  </h2>
+                  <p className="mt-0.5 text-sm text-ink-600">
+                    {(lessons.data ?? []).length} lesson
+                    {(lessons.data ?? []).length === 1 ? "" : "s"} — read-only
+                    director view. Lesson authoring is managed by the lecturer.
+                  </p>
+                </div>
+              </div>
+              {lessons.loading && <LoadingState label="Loading lessons" />}
+              {lessons.error && <ErrorState message={lessons.error} />}
+              {!lessons.loading && (lessons.data ?? []).length === 0 && (
+                <EmptyState
+                  title="No lessons yet"
+                  description="The lecturer hasn't added any lessons to this class yet."
+                />
+              )}
+              <div className="space-y-4">
+                {(lessons.data ?? []).map((lesson, index) => {
+                  const expanded = expandedLessons[lesson.id] ?? false;
+                  const materialCount = lesson.items.filter(
+                    (item) => item.item_type !== "assessment",
+                  ).length;
+                  const assessmentCount = lesson.items.filter(
+                    (item) => item.item_type === "assessment",
+                  ).length;
+                  const unlockedCount = lesson.items.filter(
+                    (item) => item.is_unlocked,
+                  ).length;
+                  return (
+                    <Card key={lesson.id} className="overflow-hidden p-0">
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-between gap-3 border-b border-ink-100 bg-cream-100/60 px-5 py-3 text-left"
+                        onClick={() =>
+                          setExpandedLessons((current) => ({
+                            ...current,
+                            [lesson.id]: !expanded,
+                          }))
+                        }
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-ink-400">
+                            {expanded ? (
+                              <KeyboardArrowDownRoundedIcon fontSize="small" />
+                            ) : (
+                              <KeyboardArrowRightRoundedIcon fontSize="small" />
+                            )}
+                          </span>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold-700">
+                              Week {index + 1}
+                            </p>
+                            <h3 className="font-serif-display text-[1.05rem] font-semibold leading-7 text-navy-900">
+                              {lesson.title}
+                            </h3>
+                            <p className="mt-0.5 text-xs text-ink-500">
+                              {materialCount} material
+                              {materialCount === 1 ? "" : "s"} ·{" "}
+                              {assessmentCount} assessment
+                              {assessmentCount === 1 ? "" : "s"}
+                              {lesson.items.length > 0
+                                ? ` · ${unlockedCount}/${lesson.items.length} unlocked`
+                                : ""}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-ink-600 ring-1 ring-ink-200">
+                          {lesson.items.length} item
+                          {lesson.items.length === 1 ? "" : "s"}
+                        </span>
+                      </button>
+
+                      {expanded && (
+                        <div>
+                          {lesson.items.length === 0 ? (
+                            <p className="px-5 py-4 text-sm text-ink-500">
+                              No materials or assessments in this lesson yet.
+                            </p>
+                          ) : (
+                            <div className="divide-y divide-ink-100">
+                              {lesson.items.map((item) => {
+                                const isAssessment =
+                                  item.item_type === "assessment";
+                                return (
+                                  <div
+                                    key={item.id}
+                                    className="flex items-center gap-3 bg-white px-5 py-3"
+                                  >
+                                    <span
+                                      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                                        isAssessment
+                                          ? "bg-gold-50 text-gold-700"
+                                          : "bg-navy-50 text-navy-700"
+                                      }`}
+                                    >
+                                      <DirectorItemIcon item={item} />
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span
+                                          className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                                            isAssessment
+                                              ? "bg-gold-100 text-gold-800"
+                                              : "bg-navy-50 text-navy-600 ring-1 ring-navy-100"
+                                          }`}
+                                        >
+                                          {isAssessment
+                                            ? "Assessment"
+                                            : directorItemBadge(item)}
+                                        </span>
+                                        {isAssessment && (
+                                          <span
+                                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                              item.is_unlocked
+                                                ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                                                : "bg-ink-100 text-ink-600 ring-1 ring-ink-200"
+                                            }`}
+                                          >
+                                            <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
+                                            {item.is_unlocked
+                                              ? "Available"
+                                              : "Locked"}
+                                          </span>
+                                        )}
+                                        <span className="truncate font-semibold text-navy-900">
+                                          {item.title}
+                                        </span>
+                                      </div>
+                                      {isAssessment && (
+                                        <p className="mt-0.5 text-xs text-ink-500">
+                                          {[
+                                            item.question_count != null
+                                              ? `${item.question_count} question${item.question_count === 1 ? "" : "s"}`
+                                              : null,
+                                            item.time_limit_seconds
+                                              ? `${Math.round(item.time_limit_seconds / 60)} min`
+                                              : null,
+                                            item.pass_threshold_percent != null
+                                              ? `pass ${Math.round(item.pass_threshold_percent)}%`
+                                              : null,
+                                          ]
+                                            .filter(Boolean)
+                                            .join(" · ")}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="flex shrink-0 items-center gap-2">
+                                      <StatusBadge
+                                        value={
+                                          isAssessment
+                                            ? (item.status ?? "draft")
+                                            : "material"
+                                        }
+                                      />
+                                      <button
+                                        type="button"
+                                        aria-label="View as student"
+                                        title="View as student"
+                                        onClick={() => setPreviewItem(item)}
+                                        className="rounded-lg p-1.5 text-ink-400 transition hover:bg-cream-100 hover:text-navy-700"
+                                      >
+                                        <VisibilityOutlinedIcon
+                                          sx={{ fontSize: 18 }}
+                                        />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {activeTab === "student-progress" && (
+            <Card className="overflow-hidden p-0">
+              <div className="border-b border-ink-100 px-5 py-4">
+                <h2 className="font-serif-display text-[1.25rem] font-semibold leading-8 text-navy-900">
+                  Student Enrollments
+                </h2>
+                <p className="mt-1 text-sm text-ink-600">
+                  {enrollmentCount} student
+                  {enrollmentCount === 1 ? "" : "s"} enrolled in this class.
+                </p>
+              </div>
+              {enrollments.loading && (
+                <LoadingState label="Loading enrollments" />
+              )}
+              {enrollmentCount === 0 && !enrollments.loading ? (
+                <div className="px-5 py-10">
+                  <EmptyState
+                    title="No enrollments"
+                    description="Enrollments appear after batches or students are attached to this class."
+                  />
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[640px] text-sm">
+                    <thead className="bg-cream-100/70 text-left text-[11px] uppercase tracking-wider text-ink-500">
+                      <tr>
+                        <th className="px-5 py-3">Student</th>
+                        <th className="px-5 py-3">Enrolled</th>
+                        <th className="px-5 py-3 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-ink-100">
+                      {enrollments.data?.enrollments.map((enrollment) => {
+                        const student = userById.get(enrollment.student_id);
+                        return (
+                          <tr key={enrollment.id}>
+                            <td className="px-5 py-3">
+                              <p className="font-semibold text-navy-900">
+                                {student?.full_name ??
+                                  `Student ${enrollment.student_id}`}
+                              </p>
+                              <p className="mt-0.5 text-ink-500">
+                                {student?.email ?? "—"}
+                              </p>
+                            </td>
+                            <td className="px-5 py-3 text-ink-500">
+                              {formatDate(enrollment.enrolled_at)}
+                            </td>
+                            <td className="px-5 py-3 text-right">
+                              <StatusBadge value={enrollment.status} />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          )}
+
+          {activeTab === "lecturer-performance" && (
             <Card className="p-8">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold-700">
                 Upcoming soon
               </p>
               <h2 className="mt-2 font-serif-display text-[1.25rem] font-semibold leading-8 text-navy-900">
-                {tabTitle(activeTab)}
+                Lecturer Performance
               </h2>
               <p className="mt-3 max-w-2xl text-sm text-ink-600">
                 This tab is in place to keep the Director workflow aligned with
-                the UXUI. The live backend data for this section is not
-                connected yet.
+                the UXUI. Assessment submission and completion data will connect
+                here once the grading-service is ready.
               </p>
             </Card>
           )}
@@ -464,6 +775,12 @@ function DirectorClassDetailPage({ id }: { id: string }) {
         }}
         onError={(message) => setAssignError(message)}
       />
+
+      <DirectorPreviewModal
+        code={currentCourse?.code ?? ""}
+        item={previewItem}
+        onClose={() => setPreviewItem(null)}
+      />
     </>
   );
 }
@@ -480,7 +797,7 @@ function HeroMetric({
   helper: string;
 }) {
   return (
-    <div>
+    <div className="px-5 py-4">
       <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-ink-500">
         <span className="text-ink-400">{icon}</span>
         {label}
@@ -545,11 +862,18 @@ function FactRow({
 function ClassTabs({
   active,
   onChange,
+  enrollmentCount,
 }: {
   active: ClassTab;
   onChange: (value: ClassTab) => void;
+  enrollmentCount: number;
 }) {
-  const tabs: { id: ClassTab; label: string; icon: ReactNode }[] = [
+  const tabs: {
+    id: ClassTab;
+    label: string;
+    icon: ReactNode;
+    count?: number;
+  }[] = [
     {
       id: "overview",
       label: "Overview",
@@ -564,6 +888,7 @@ function ClassTabs({
       id: "student-progress",
       label: "Student Progress",
       icon: <Groups2OutlinedIcon fontSize="small" />,
+      count: enrollmentCount,
     },
     {
       id: "lecturer-performance",
@@ -590,6 +915,17 @@ function ClassTabs({
             >
               {tab.icon}
               {tab.label}
+              {tab.count != null && tab.count > 0 && (
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                    selected
+                      ? "bg-cream-50/20 text-cream-100"
+                      : "bg-navy-100 text-navy-800"
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              )}
             </button>
           );
         })}
@@ -598,17 +934,210 @@ function ClassTabs({
   );
 }
 
-function tabTitle(tab: ClassTab) {
-  switch (tab) {
-    case "lessons":
-      return "Lessons";
-    case "student-progress":
-      return "Student Progress";
-    case "lecturer-performance":
-      return "Lecturer Performance";
-    default:
-      return "Overview";
-  }
+function ProgressRing({ value, label }: { value: number; label: string }) {
+  const radius = 34;
+  const circumference = 2 * Math.PI * radius;
+  const clamped = Math.max(0, Math.min(100, value));
+  const offset = circumference - (clamped / 100) * circumference;
+  return (
+    <div className="relative h-[88px] w-[88px] shrink-0">
+      <svg className="h-full w-full -rotate-90" viewBox="0 0 80 80">
+        <circle
+          cx="40"
+          cy="40"
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="7"
+          className="text-cream-50/20"
+        />
+        <circle
+          cx="40"
+          cy="40"
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="7"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className="text-gold-400"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-[1.05rem] font-bold leading-none text-cream-50">
+          {clamped}%
+        </span>
+        <span className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.15em] text-gold-300">
+          {label}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function DirectorItemIcon({ item }: { item: LessonItem }) {
+  if (item.item_type === "assessment")
+    return <AssignmentOutlinedIcon sx={{ fontSize: 18 }} />;
+  const type = (item.material_type ?? "").toLowerCase();
+  if (type === "pdf") return <PictureAsPdfOutlinedIcon sx={{ fontSize: 18 }} />;
+  if (type === "link") return <LinkRoundedIcon sx={{ fontSize: 18 }} />;
+  return <DescriptionOutlinedIcon sx={{ fontSize: 18 }} />;
+}
+
+function directorItemBadge(item: LessonItem) {
+  const type = (item.material_type ?? "").toLowerCase();
+  if (type === "pdf") return "PDF";
+  if (type === "document") return "DOC";
+  if (type === "text") return "TXT";
+  if (type === "link") return "LINK";
+  return "MATERIAL";
+}
+
+function directorAssessmentMeta(item: LessonItem) {
+  return [
+    item.question_count != null
+      ? `${item.question_count} question${item.question_count === 1 ? "" : "s"}`
+      : null,
+    item.time_limit_seconds
+      ? `${Math.round(item.time_limit_seconds / 60)} min`
+      : null,
+    item.pass_threshold_percent != null
+      ? `pass ${Math.round(item.pass_threshold_percent)}%`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function DirectorPreviewModal({
+  code,
+  item,
+  onClose,
+}: {
+  code: string;
+  item: LessonItem | null;
+  onClose: () => void;
+}) {
+  const isAssessment = item?.item_type === "assessment";
+  const badge = item
+    ? isAssessment
+      ? "Assessment"
+      : directorItemBadge(item)
+    : "";
+
+  return (
+    <Modal
+      open={item !== null}
+      onClose={onClose}
+      title={item?.title ?? "Preview"}
+      description="This is exactly how students will see this item."
+      eyebrow="Director · View as student"
+      footer={
+        <Button type="button" variant="secondary" onClick={onClose}>
+          Close preview
+        </Button>
+      }
+    >
+      {item && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-gold-50 px-4 py-3 text-sm font-semibold text-gold-800 ring-1 ring-gold-200">
+            <span>Preview mode — interactions are read-only.</span>
+            <span className="rounded-md bg-white/70 px-2 py-0.5 text-[11px] uppercase tracking-wider">
+              {badge}
+            </span>
+          </div>
+
+          <div className="rounded-xl bg-navy-900 px-5 py-4 text-cream-100">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-cream-50/10 text-gold-300">
+                <DirectorItemIcon item={item} />
+              </span>
+              <div>
+                <p className="font-semibold text-cream-50">{item.title}</p>
+                <p className="text-xs text-cream-100/70">
+                  {badge}
+                  {isAssessment ? ` · ${directorAssessmentMeta(item)}` : ""}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-ink-100 bg-cream-50/60 px-5 py-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold-700">
+              {code} · {isAssessment ? "Assessment" : "Material"}
+            </p>
+            <h3 className="mt-1 font-serif-display text-[1.3rem] font-semibold text-navy-900">
+              {item.title}
+            </h3>
+            {item.description ? (
+              <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-ink-700">
+                {item.description}
+              </p>
+            ) : (
+              <p className="mt-3 text-sm text-ink-500">
+                No description was provided for this{" "}
+                {isAssessment ? "assessment" : "material"}.
+              </p>
+            )}
+
+            {isAssessment && (
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                <DirectorPreviewFact
+                  label="Questions"
+                  value={String(item.question_count ?? 0)}
+                />
+                <DirectorPreviewFact
+                  label="Time limit"
+                  value={
+                    item.time_limit_seconds
+                      ? `${Math.round(item.time_limit_seconds / 60)} min`
+                      : "None"
+                  }
+                />
+                <DirectorPreviewFact
+                  label="Pass mark"
+                  value={
+                    item.pass_threshold_percent != null
+                      ? `${Math.round(item.pass_threshold_percent)}%`
+                      : "—"
+                  }
+                />
+              </div>
+            )}
+
+            {!isAssessment && item.link_url && (
+              <a
+                href={item.link_url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-navy-800 px-3 py-2 text-sm font-semibold text-cream-50 transition hover:bg-navy-900"
+              >
+                <OpenInNewRoundedIcon sx={{ fontSize: 16 }} /> Open resource
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+function DirectorPreviewFact({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg border border-ink-100 bg-white px-3 py-2">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-ink-500">
+        {label}
+      </p>
+      <p className="mt-0.5 font-semibold text-navy-900">{value}</p>
+    </div>
+  );
 }
 
 function formatDate(value: string) {
