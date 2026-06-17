@@ -1,5 +1,7 @@
 "use client";
 
+import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
+import KeyboardArrowRightRoundedIcon from "@mui/icons-material/KeyboardArrowRightRounded";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -102,6 +104,9 @@ export function RolesPage() {
   const [saveMessage, setSaveMessage] = useState("");
   const [memberError, setMemberError] = useState("");
   const [memberBusyId, setMemberBusyId] = useState("");
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
+    {},
+  );
 
   const rolesAsync = useAsync(() => api.roles.list(), []);
   const permissionsAsync = useAsync(() => api.permissions.list(), []);
@@ -141,7 +146,12 @@ export function RolesPage() {
     setSaveError("");
     setSaveMessage("");
     setMemberError("");
+    setExpandedGroups({});
   }, [activeRole]);
+
+  function toggleGroup(resource: string) {
+    setExpandedGroups((prev) => ({ ...prev, [resource]: !prev[resource] }));
+  }
 
   useEffect(() => {
     setDraftPermissionIds(
@@ -524,57 +534,81 @@ export function RolesPage() {
               )}
 
               {tab === "permissions" && (
-                <div className="space-y-6">
+                <div className="space-y-2">
                   {groupedPermissions.map(([resource, permissions]) => {
                     const grantedCount = permissions.filter((permission) =>
                       draftPermissionSet.has(permission.id),
                     ).length;
+                    const isExpanded = expandedGroups[resource] ?? false;
                     return (
-                      <div key={resource}>
-                        <div className="mb-3 flex items-center justify-between">
-                          <h3 className="text-[11px] font-bold uppercase tracking-wider text-gold-700">
-                            {resource}
-                          </h3>
-                          <span className="text-[11px] font-semibold text-ink-500">
-                            {grantedCount} / {permissions.length}
-                          </span>
-                        </div>
-                        <div className="overflow-hidden rounded-xl ring-1 ring-ink-100">
-                          {permissions.map((permission) => {
-                            const enabled = draftPermissionSet.has(
-                              permission.id,
-                            );
-                            const code = `${permission.resource}.${permission.action}`;
-                            return (
-                              <div
-                                key={permission.id}
-                                className="flex items-center gap-4 border-b border-ink-100 px-4 py-3 last:border-b-0 hover:bg-cream-50"
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-sm font-semibold text-navy-900">
-                                    {permission.description || permission.code}
-                                  </p>
-                                  <p className="mt-1 text-[11px] text-ink-400">
-                                    {code}
-                                  </p>
+                      <div
+                        key={resource}
+                        className="overflow-hidden rounded-xl ring-1 ring-ink-100"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleGroup(resource)}
+                          className="flex w-full items-center justify-between bg-cream-50 px-4 py-3 text-left transition hover:bg-cream-100"
+                        >
+                          <div className="flex items-center gap-3">
+                            <h3 className="text-[11px] font-bold uppercase tracking-wider text-gold-700">
+                              {resource}
+                            </h3>
+                            <span className="text-[11px] font-semibold text-ink-500">
+                              {grantedCount} / {permissions.length}
+                            </span>
+                          </div>
+                          {isExpanded ? (
+                            <KeyboardArrowDownRoundedIcon
+                              className="text-ink-400"
+                              fontSize="small"
+                            />
+                          ) : (
+                            <KeyboardArrowRightRoundedIcon
+                              className="text-ink-400"
+                              fontSize="small"
+                            />
+                          )}
+                        </button>
+                        {isExpanded && (
+                          <div className="border-t border-ink-100">
+                            {permissions.map((permission) => {
+                              const enabled = draftPermissionSet.has(
+                                permission.id,
+                              );
+                              const code = `${permission.resource}.${permission.action}`;
+                              return (
+                                <div
+                                  key={permission.id}
+                                  className="flex items-center gap-4 border-b border-ink-100 px-4 py-3 last:border-b-0 hover:bg-cream-50"
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-semibold text-navy-900">
+                                      {permission.description ||
+                                        permission.code}
+                                    </p>
+                                    <p className="mt-1 text-[11px] text-ink-400">
+                                      {code}
+                                    </p>
+                                  </div>
+                                  <Toggle
+                                    checked={enabled}
+                                    disabled={saveLoading}
+                                    onChange={() =>
+                                      setDraftPermissionIds((current) =>
+                                        current.includes(permission.id)
+                                          ? current.filter(
+                                              (id) => id !== permission.id,
+                                            )
+                                          : [...current, permission.id],
+                                      )
+                                    }
+                                  />
                                 </div>
-                                <Toggle
-                                  checked={enabled}
-                                  disabled={saveLoading}
-                                  onChange={() =>
-                                    setDraftPermissionIds((current) =>
-                                      current.includes(permission.id)
-                                        ? current.filter(
-                                            (id) => id !== permission.id,
-                                          )
-                                        : [...current, permission.id],
-                                    )
-                                  }
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
