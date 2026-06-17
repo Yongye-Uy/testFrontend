@@ -12,6 +12,8 @@ import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import KeyboardArrowRightRoundedIcon from "@mui/icons-material/KeyboardArrowRightRounded";
 import LinkRoundedIcon from "@mui/icons-material/LinkRounded";
+import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
 import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
@@ -29,6 +31,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { api, ApiError } from "@/lib/api-client";
 import { courseLabel } from "@/features/courses/course-utils";
 import { AssignLecturerModal } from "@/features/classes/assign-lecturer-modal";
+import { Modal } from "@/components/ui/modal";
 import { LecturerClassDetailPage } from "@/features/classes/lecturer-class-detail-page";
 import { useAsync } from "@/features/shared/use-async";
 import { useAuth } from "@/hooks/use-auth";
@@ -57,6 +60,7 @@ function DirectorClassDetailPage({ id }: { id: string }) {
   const [expandedLessons, setExpandedLessons] = useState<
     Record<string, boolean>
   >({});
+  const [previewItem, setPreviewItem] = useState<LessonItem | null>(null);
   const [coursesBlocked, setCoursesBlocked] = useState(false);
   const [semesterBlocked, setSemesterBlocked] = useState(false);
   const [batchesBlocked, setBatchesBlocked] = useState(false);
@@ -646,13 +650,26 @@ function DirectorClassDetailPage({ id }: { id: string }) {
                                         </p>
                                       )}
                                     </div>
-                                    <StatusBadge
-                                      value={
-                                        isAssessment
-                                          ? (item.status ?? "draft")
-                                          : "material"
-                                      }
-                                    />
+                                    <div className="flex shrink-0 items-center gap-2">
+                                      <StatusBadge
+                                        value={
+                                          isAssessment
+                                            ? (item.status ?? "draft")
+                                            : "material"
+                                        }
+                                      />
+                                      <button
+                                        type="button"
+                                        aria-label="View as student"
+                                        title="View as student"
+                                        onClick={() => setPreviewItem(item)}
+                                        className="rounded-lg p-1.5 text-ink-400 transition hover:bg-cream-100 hover:text-navy-700"
+                                      >
+                                        <VisibilityOutlinedIcon
+                                          sx={{ fontSize: 18 }}
+                                        />
+                                      </button>
+                                    </div>
                                   </div>
                                 );
                               })}
@@ -757,6 +774,12 @@ function DirectorClassDetailPage({ id }: { id: string }) {
           await reloadAll();
         }}
         onError={(message) => setAssignError(message)}
+      />
+
+      <DirectorPreviewModal
+        code={currentCourse?.code ?? ""}
+        item={previewItem}
+        onClose={() => setPreviewItem(null)}
       />
     </>
   );
@@ -969,6 +992,152 @@ function directorItemBadge(item: LessonItem) {
   if (type === "text") return "TXT";
   if (type === "link") return "LINK";
   return "MATERIAL";
+}
+
+function directorAssessmentMeta(item: LessonItem) {
+  return [
+    item.question_count != null
+      ? `${item.question_count} question${item.question_count === 1 ? "" : "s"}`
+      : null,
+    item.time_limit_seconds
+      ? `${Math.round(item.time_limit_seconds / 60)} min`
+      : null,
+    item.pass_threshold_percent != null
+      ? `pass ${Math.round(item.pass_threshold_percent)}%`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function DirectorPreviewModal({
+  code,
+  item,
+  onClose,
+}: {
+  code: string;
+  item: LessonItem | null;
+  onClose: () => void;
+}) {
+  const isAssessment = item?.item_type === "assessment";
+  const badge = item
+    ? isAssessment
+      ? "Assessment"
+      : directorItemBadge(item)
+    : "";
+
+  return (
+    <Modal
+      open={item !== null}
+      onClose={onClose}
+      title={item?.title ?? "Preview"}
+      description="This is exactly how students will see this item."
+      eyebrow="Director · View as student"
+      footer={
+        <Button type="button" variant="secondary" onClick={onClose}>
+          Close preview
+        </Button>
+      }
+    >
+      {item && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-gold-50 px-4 py-3 text-sm font-semibold text-gold-800 ring-1 ring-gold-200">
+            <span>Preview mode — interactions are read-only.</span>
+            <span className="rounded-md bg-white/70 px-2 py-0.5 text-[11px] uppercase tracking-wider">
+              {badge}
+            </span>
+          </div>
+
+          <div className="rounded-xl bg-navy-900 px-5 py-4 text-cream-100">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-cream-50/10 text-gold-300">
+                <DirectorItemIcon item={item} />
+              </span>
+              <div>
+                <p className="font-semibold text-cream-50">{item.title}</p>
+                <p className="text-xs text-cream-100/70">
+                  {badge}
+                  {isAssessment ? ` · ${directorAssessmentMeta(item)}` : ""}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-ink-100 bg-cream-50/60 px-5 py-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold-700">
+              {code} · {isAssessment ? "Assessment" : "Material"}
+            </p>
+            <h3 className="mt-1 font-serif-display text-[1.3rem] font-semibold text-navy-900">
+              {item.title}
+            </h3>
+            {item.description ? (
+              <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-ink-700">
+                {item.description}
+              </p>
+            ) : (
+              <p className="mt-3 text-sm text-ink-500">
+                No description was provided for this{" "}
+                {isAssessment ? "assessment" : "material"}.
+              </p>
+            )}
+
+            {isAssessment && (
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                <DirectorPreviewFact
+                  label="Questions"
+                  value={String(item.question_count ?? 0)}
+                />
+                <DirectorPreviewFact
+                  label="Time limit"
+                  value={
+                    item.time_limit_seconds
+                      ? `${Math.round(item.time_limit_seconds / 60)} min`
+                      : "None"
+                  }
+                />
+                <DirectorPreviewFact
+                  label="Pass mark"
+                  value={
+                    item.pass_threshold_percent != null
+                      ? `${Math.round(item.pass_threshold_percent)}%`
+                      : "—"
+                  }
+                />
+              </div>
+            )}
+
+            {!isAssessment && item.link_url && (
+              <a
+                href={item.link_url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-navy-800 px-3 py-2 text-sm font-semibold text-cream-50 transition hover:bg-navy-900"
+              >
+                <OpenInNewRoundedIcon sx={{ fontSize: 16 }} /> Open resource
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+function DirectorPreviewFact({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg border border-ink-100 bg-white px-3 py-2">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-ink-500">
+        {label}
+      </p>
+      <p className="mt-0.5 font-semibold text-navy-900">{value}</p>
+    </div>
+  );
 }
 
 function formatDate(value: string) {
