@@ -4,6 +4,7 @@ import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
+import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import type { SvgIconComponent } from "@mui/icons-material";
 import type { User } from "@/types/user";
 import { isDirector, isLecturer, isSuperAdmin } from "./auth";
@@ -51,6 +52,12 @@ const ALL_SIDEBAR_ITEMS: SidebarItem[] = [
     href: "/batches",
     icon: GroupsOutlinedIcon,
     permission: "batch.read",
+  },
+  {
+    label: "Configuration",
+    href: "/configuration",
+    icon: TuneOutlinedIcon,
+    permission: "config.read",
   },
 ];
 

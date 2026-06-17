@@ -1484,4 +1484,25 @@ export const api = {
         { method: "DELETE" },
       ),
   },
+  platformConfig: {
+    get: () =>
+      request<{ config: PlatformConfig }>("user", "/config", {}, false).then(
+        (r) => r.config,
+      ),
+    update: (config: PlatformConfig) =>
+      request<{ config: PlatformConfig }>("user", "/config", {
+        method: "PUT",
+        ...jsonBody({ config }),
+      }).then((r) => r.config),
+  },
 };
+
+export interface PlatformConfig {
+  platform_name: string;
+  institution_name: string;
+  institution_location: string;
+  session_timeout_minutes: number;
+  refresh_token_days: number;
+  password_min_length: number;
+  allowed_email_domains: string[];
+}

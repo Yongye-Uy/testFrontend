@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { useAuth, AuthProvider } from "@/hooks/use-auth";
 import { useSidebar } from "@/hooks/use-sidebar";
+import { usePlatformConfig } from "@/hooks/use-platform-config";
 import { isDirector } from "@/lib/auth";
 import { api } from "@/lib/api-client";
 import {
@@ -25,6 +26,7 @@ import type { User } from "@/types/user";
 function LayoutInner({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
   const { mobileOpen, setMobileOpen, collapsed, setCollapsed } = useSidebar();
+  const platformConfig = usePlatformConfig();
   const router = useRouter();
   const pathname = usePathname();
   const director = isDirector(user);
@@ -93,11 +95,13 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
         >
           <Link href="/dashboard" className="min-w-0">
             <div className="text-sm font-bold tracking-[0.2em] text-navy-900">
-              {collapsed ? "EP" : "EPPLMS"}
+              {collapsed
+                ? platformConfig.platform_name.slice(0, 2).toUpperCase()
+                : platformConfig.platform_name}
             </div>
             {!collapsed && (
               <div className="text-[10px] uppercase tracking-widest text-gold-700">
-                Learning Platform
+                {platformConfig.institution_name || "Learning Platform"}
               </div>
             )}
           </Link>
