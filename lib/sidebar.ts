@@ -5,6 +5,11 @@ import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
+import MonitorHeartOutlinedIcon from "@mui/icons-material/MonitorHeartOutlined";
+import ExtensionOutlinedIcon from "@mui/icons-material/ExtensionOutlined";
+import RouterOutlinedIcon from "@mui/icons-material/RouterOutlined";
+import StorageOutlinedIcon from "@mui/icons-material/StorageOutlined";
+import BarChartOutlinedIcon from "@mui/icons-material/BarChartOutlined";
 import type { SvgIconComponent } from "@mui/icons-material";
 import type { User } from "@/types/user";
 import { isDirector, isLecturer, isSuperAdmin } from "./auth";
@@ -15,6 +20,7 @@ export type SidebarItem = {
   hint?: string;
   icon?: SvgIconComponent;
   permission?: string;
+  comingSoon?: boolean;
 };
 
 // Master list — each item declares its required RBAC permission code.
@@ -37,14 +43,12 @@ const ALL_SIDEBAR_ITEMS: SidebarItem[] = [
     label: "Semesters",
     href: "/semesters",
     icon: CalendarMonthOutlinedIcon,
-    // write permission = manages resource; semester.read alone means reference data for other pages
     permission: "semester.create",
   },
   {
     label: "Course Catalog",
     href: "/courses",
     icon: MenuBookOutlinedIcon,
-    // write permission = manages resource; course.read alone means reference data for batch/class pages
     permission: "course.create",
   },
   {
@@ -53,11 +57,46 @@ const ALL_SIDEBAR_ITEMS: SidebarItem[] = [
     icon: GroupsOutlinedIcon,
     permission: "batch.read",
   },
+  // System Admin section
+  {
+    label: "System Health",
+    href: "/system-health",
+    icon: MonitorHeartOutlinedIcon,
+    permission: "config.read",
+    comingSoon: true,
+  },
   {
     label: "Configuration",
     href: "/configuration",
     icon: TuneOutlinedIcon,
     permission: "config.read",
+  },
+  {
+    label: "Integrations",
+    href: "/integrations",
+    icon: ExtensionOutlinedIcon,
+    permission: "integration.read",
+  },
+  {
+    label: "API Gateway",
+    href: "/api-gateway",
+    icon: RouterOutlinedIcon,
+    permission: "config.read",
+    comingSoon: true,
+  },
+  {
+    label: "Storage",
+    href: "/storage",
+    icon: StorageOutlinedIcon,
+    permission: "config.read",
+    comingSoon: true,
+  },
+  {
+    label: "Observability",
+    href: "/observability",
+    icon: BarChartOutlinedIcon,
+    permission: "config.read",
+    comingSoon: true,
   },
 ];
 
@@ -76,7 +115,9 @@ export function sidebarForUser(user: User | null): SidebarItem[] {
   }
 
   if (isDirector(user)) {
-    return ALL_SIDEBAR_ITEMS.filter((item) => item.href !== "/roles");
+    return ALL_SIDEBAR_ITEMS.filter(
+      (item) => item.href !== "/roles" && !item.permission?.startsWith("config") && !item.permission?.startsWith("integration"),
+    );
   }
 
   if (isLecturer(user)) {

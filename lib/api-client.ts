@@ -1495,7 +1495,52 @@ export const api = {
         ...jsonBody({ config }),
       }).then((r) => r.config),
   },
+  integrations: {
+    get: () =>
+      request<{ integrations: IntegrationsConfig }>("user", "/integrations").then(
+        (r) => r.integrations,
+      ),
+    update: (integrations: IntegrationsConfig) =>
+      request<{ integrations: IntegrationsConfig }>("user", "/integrations", {
+        method: "PUT",
+        ...jsonBody({ integrations }),
+      }).then((r) => r.integrations),
+    test: (service: IntegrationService) =>
+      request<{ success: boolean; message: string }>("user", "/integrations/test", {
+        method: "POST",
+        ...jsonBody({ service }),
+      }),
+  },
 };
+
+export type IntegrationService = "google_oauth" | "smtp" | "r2";
+
+export interface GoogleOAuthConfig {
+  client_id: string;
+  client_secret: string;
+  redirect_uri: string;
+}
+
+export interface SMTPConfig {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+  from_name: string;
+}
+
+export interface R2Config {
+  endpoint: string;
+  access_key_id: string;
+  secret_access_key: string;
+  bucket: string;
+}
+
+export interface IntegrationsConfig {
+  google_oauth: GoogleOAuthConfig;
+  smtp: SMTPConfig;
+  r2: R2Config;
+}
 
 export interface PlatformConfig {
   platform_name: string;

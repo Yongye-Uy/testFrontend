@@ -215,6 +215,27 @@ function SidebarLink({
   const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
   const Icon = item.icon;
 
+  if (item.comingSoon) {
+    return (
+      <span
+        title={collapsed ? item.label : undefined}
+        className={`group relative flex cursor-not-allowed items-center rounded-lg text-sm font-medium opacity-50 ${collapsed ? "justify-center px-2 py-2.5" : "justify-between px-3 py-2"} text-ink-500`}
+      >
+        <span className={`flex min-w-0 items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
+          <span className="shrink-0">
+            {Icon ? <Icon style={{ fontSize: 20 }} /> : null}
+          </span>
+          <span className={collapsed ? "lg:hidden" : ""}>{item.label}</span>
+        </span>
+        {!collapsed && (
+          <span className="rounded-full bg-ink-100 px-2 py-0.5 text-[10px] text-ink-500 ring-1 ring-ink-200">
+            Soon
+          </span>
+        )}
+      </span>
+    );
+  }
+
   return (
     <Link
       href={item.href}
