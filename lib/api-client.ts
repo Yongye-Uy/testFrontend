@@ -800,14 +800,18 @@ export const api = {
       newPassword: string,
       confirmPassword: string,
     ) =>
-      request<{ success?: boolean }>("user", "/users/me/change-password", {
-        method: "POST",
-        ...jsonBody({
-          current_password: currentPassword,
-          new_password: newPassword,
-          confirm_password: confirmPassword,
-        }),
-      }),
+      request<{ success?: boolean; access_token?: string; refresh_token?: string }>(
+        "user",
+        "/users/me/change-password",
+        {
+          method: "POST",
+          ...jsonBody({
+            current_password: currentPassword,
+            new_password: newPassword,
+            confirm_password: confirmPassword,
+          }),
+        },
+      ),
     getPermissions: (id: string) =>
       request<{ permissions: string[] }>(
         "user",

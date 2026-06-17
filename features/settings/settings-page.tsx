@@ -8,8 +8,8 @@ import { ErrorState } from "@/components/shared/error-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, inputClass } from "@/components/ui/field";
-import { useAuth } from "@/hooks/use-auth";
 import { api } from "@/lib/api-client";
+import { storeTokens } from "@/lib/auth";
 
 export function SettingsPage() {
   return (
@@ -44,7 +44,6 @@ export function SettingsPage() {
 }
 
 function SecuritySection() {
-  const { logout } = useAuth();
   const [form, setForm] = useState({ current: "", next: "", confirm: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -60,10 +59,12 @@ function SecuritySection() {
     setError("");
     setSuccess(false);
     try {
-      await api.users.changePassword(form.current, form.next, form.confirm);
+      const result = await api.users.changePassword(form.current, form.next, form.confirm);
+      if (result.access_token && result.refresh_token) {
+        storeTokens({ accessToken: result.access_token, refreshToken: result.refresh_token });
+      }
       setSuccess(true);
       setForm({ current: "", next: "", confirm: "" });
-      setTimeout(() => void logout(), 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Password change failed");
     } finally {
@@ -78,13 +79,12 @@ function SecuritySection() {
           Security
         </h3>
         <p className="mt-0.5 text-xs text-ink-500">
-          Update your password. You will be signed out and redirected to login
-          after the change.
+          Update your password.
         </p>
 
         {success && (
           <div className="mt-4 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800 ring-1 ring-emerald-200">
-            Password changed successfully. Signing you out…
+            Password changed successfully.
           </div>
         )}
 
