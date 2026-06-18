@@ -12,7 +12,9 @@ import StorageOutlinedIcon from "@mui/icons-material/StorageOutlined";
 import BarChartOutlinedIcon from "@mui/icons-material/BarChartOutlined";
 import type { SvgIconComponent } from "@mui/icons-material";
 import type { User } from "@/types/user";
-import { isDirector, isLecturer, isSuperAdmin } from "./auth";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import GradeOutlinedIcon from "@mui/icons-material/GradeOutlined";
+import { isDirector, isLecturer, isSuperAdmin, isStudent } from "./auth";
 
 export type SidebarItem = {
   label: string;
@@ -129,6 +131,26 @@ export function sidebarForUser(user: User | null): SidebarItem[] {
         label: "My Classes",
         href: "/classes",
         icon: MenuBookOutlinedIcon,
+      },
+    ];
+  }
+
+  if (isStudent(user)) {
+    return [
+      {
+        label: "Dashboard",
+        href: "/dashboard",
+        icon: DashboardOutlinedIcon,
+      },
+      {
+        label: "My Classes",
+        href: "/my-classes",
+        icon: AssignmentOutlinedIcon,
+      },
+      {
+        label: "Grades",
+        href: "/grades",
+        icon: GradeOutlinedIcon,
       },
     ];
   }

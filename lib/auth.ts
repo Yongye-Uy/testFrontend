@@ -111,3 +111,8 @@ export function isLecturer(user: User | null) {
   if (!user) return false;
   return user.role === "lecturer" || user.roles.includes("lecturer");
 }
+
+export function isStudent(user: User | null) {
+  if (!user) return false;
+  return user.role === "student" || user.roles.includes("student");
+}
