@@ -16,6 +16,7 @@ import { Field, inputClass } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { api } from "@/lib/api-client";
+import { usePlatformConfig } from "@/hooks/use-platform-config";
 import type { Batch } from "@/types/course";
 import type { InviteUserEntry, InviteUserResult, User } from "@/types/user";
 
@@ -68,6 +69,7 @@ export function BulkInviteWizardModal({
   fixedBatchId?: string;
   allowedRoles?: InviteRole[];
 }) {
+  const { allowed_email_domains: allowedDomains } = usePlatformConfig();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedRole, setSelectedRole] = useState<InviteRole>(defaultRole);
   const [selectedBatchId, setSelectedBatchId] = useState(fixedBatchId ?? "");
@@ -91,8 +93,8 @@ export function BulkInviteWizardModal({
   );
 
   const validation = useMemo(
-    () => validateRows(rows, selectedRole, selectedBatchId, existingEmails),
-    [existingEmails, rows, selectedBatchId, selectedRole],
+    () => validateRows(rows, selectedRole, selectedBatchId, existingEmails, allowedDomains),
+    [allowedDomains, existingEmails, rows, selectedBatchId, selectedRole],
   );
 
   function resetState() {
@@ -777,6 +779,7 @@ function validateRows(
   role: InviteRole,
   batchId: string,
   existingEmails: Set<string>,
+  allowedDomains: string[],
 ): { validRows: ValidRow[]; invalidRows: ValidationIssue[] } {
   const duplicateCounts = rows.reduce<Record<string, number>>((acc, row) => {
     const key = row.email.trim().toLowerCase();
@@ -799,6 +802,11 @@ function validateRows(
     else if (duplicateCounts[email] > 1)
       issue = "Duplicate email inside this CSV";
     else if (existingEmails.has(email)) issue = "Email already exists";
+    else if (
+      allowedDomains.length > 0 &&
+      !allowedDomains.some((d) => email.endsWith(d.startsWith("@") ? d : `@${d}`))
+    )
+      issue = `Email domain not allowed (allowed: ${allowedDomains.join(", ")})`;
     else if (role === "student" && !batchId)
       issue = "Student rows must be attached to a batch";
 

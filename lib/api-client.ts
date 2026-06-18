@@ -648,6 +648,57 @@ function withQuery(path: string, params?: URLSearchParams) {
   return query ? `${path}?${query}` : path;
 }
 
+export interface ObservabilityLogsParams {
+  query?: string;
+  limit?: number;
+  start: number; // nanoseconds
+  end: number;   // nanoseconds
+}
+
+export interface LokiStreamValue {
+  ts: string;
+  line: string;
+}
+
+export interface LokiStream {
+  stream: Record<string, string>;
+  values: [string, string][]; // [timestamp_ns, log_line]
+}
+
+export interface LokiQueryResponse {
+  status: string;
+  data: {
+    resultType: string;
+    result: LokiStream[];
+  };
+}
+
+export interface StorageTypeStat {
+  material_type: string;
+  file_count: string;
+}
+export interface StorageStatsResponse {
+  type_stats: StorageTypeStat[];
+  total_files: string;
+}
+export interface StorageFileItem {
+  material_id: number;
+  file_name: string;
+  file_object_key: string;
+  mime_type: string;
+  material_type: string;
+  created_at: string;
+  course_code: string;
+  course_title: string;
+  lesson_title: string;
+}
+export interface StorageFilesResponse {
+  files: StorageFileItem[];
+  total: string;
+  page: number;
+  page_size: number;
+}
+
 export const api = {
   auth: {
     login: (email: string, password: string) =>
@@ -1530,4 +1581,115 @@ export const api = {
         { method: "DELETE" },
       ),
   },
+  platformConfig: {
+    get: () =>
+      request<{ config: PlatformConfig }>("user", "/config", {}, false).then(
+        (r) => r.config,
+      ),
+    update: (config: PlatformConfig) =>
+      request<{ config: PlatformConfig }>("user", "/config", {
+        method: "PUT",
+        ...jsonBody({ config }),
+      }).then((r) => r.config),
+  },
+  integrations: {
+    get: () =>
+      request<{ integrations: IntegrationsConfig }>("user", "/integrations").then(
+        (r) => r.integrations,
+      ),
+    update: (integrations: IntegrationsConfig) =>
+      request<{ integrations: IntegrationsConfig }>("user", "/integrations", {
+        method: "PUT",
+        ...jsonBody({ integrations }),
+      }).then((r) => r.integrations),
+    test: (service: IntegrationService) =>
+      request<{ success: boolean; message: string }>("user", "/integrations/test", {
+        method: "POST",
+        ...jsonBody({ service }),
+      }),
+  },
+
+  storage: {
+    stats: () =>
+      request<StorageStatsResponse>("course", "/storage/stats"),
+    files: (page: number, pageSize = 20) =>
+      request<StorageFilesResponse>("course", `/storage/files?page=${page}&page_size=${pageSize}`),
+  },
+
+  observability: {
+    logs: (params: ObservabilityLogsParams) => {
+      const qs = new URLSearchParams({
+        query: params.query || "{}",
+        limit: String(params.limit ?? 50),
+        start: String(params.start),
+        end: String(params.end),
+        direction: "backward",
+      });
+      return fetch(`/api/observability/logs/query_range?${qs}`, {
+        headers: { Authorization: `Bearer ${getAccessToken()}` },
+      }).then((r) => r.json() as Promise<LokiQueryResponse>);
+    },
+    stats: (params: { start: number; end: number }) => {
+      const rangeS = Math.round((params.end - params.start) / 1e9);
+      // severity_text is OTLP structured metadata — use label filter after stream selector.
+      const errorQs = new URLSearchParams({
+        query: `count_over_time({service_name=~".+"} | severity_text="ERROR" [${rangeS}s])`,
+        time: String(params.end),
+      });
+      const warnQs = new URLSearchParams({
+        query: `count_over_time({service_name=~".+"} | severity_text="WARN" [${rangeS}s])`,
+        time: String(params.end),
+      });
+      const totalQs = new URLSearchParams({
+        query: `count_over_time({service_name=~".+"}[${rangeS}s])`,
+        time: String(params.end),
+      });
+      const auth = { Authorization: `Bearer ${getAccessToken()}` };
+      return Promise.all([
+        fetch(`/api/observability/logs/query?${errorQs}`, { headers: auth }).then((r) => r.json()),
+        fetch(`/api/observability/logs/query?${warnQs}`, { headers: auth }).then((r) => r.json()),
+        fetch(`/api/observability/logs/query?${totalQs}`, { headers: auth }).then((r) => r.json()),
+        fetch(`/api/observability/metrics/query?query=histogram_quantile(0.95%2C+sum(rate(http_request_duration_seconds_bucket%5B5m%5D))+by+(le))`, { headers: auth }).then((r) => r.json()),
+      ]);
+    },
+  },
 };
+
+export type IntegrationService = "google_oauth" | "smtp" | "r2";
+
+export interface GoogleOAuthConfig {
+  client_id: string;
+  client_secret: string;
+  redirect_uri: string;
+}
+
+export interface SMTPConfig {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+  from_name: string;
+}
+
+export interface R2Config {
+  endpoint: string;
+  access_key_id: string;
+  secret_access_key: string;
+  bucket: string;
+}
+
+export interface IntegrationsConfig {
+  google_oauth: GoogleOAuthConfig;
+  smtp: SMTPConfig;
+  r2: R2Config;
+}
+
+export interface PlatformConfig {
+  platform_name: string;
+  institution_name: string;
+  institution_location: string;
+  session_timeout_minutes: number;
+  refresh_token_days: number;
+  password_min_length: number;
+  allowed_email_domains: string[];
+}

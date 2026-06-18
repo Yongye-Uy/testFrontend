@@ -7,6 +7,7 @@ import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, inputClass } from "@/components/ui/field";
 import { useAuth, AuthProvider } from "@/hooks/use-auth";
+import { usePlatformConfig } from "@/hooks/use-platform-config";
 
 function GoogleLogo() {
   return (
@@ -38,6 +39,7 @@ function GoogleLogo() {
 
 function LoginInner() {
   const { login } = useAuth();
+  const platformConfig = usePlatformConfig();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -70,10 +72,10 @@ function LoginInner() {
             </span>
             <div>
               <p className="text-sm font-bold tracking-[0.22em] text-cream-50">
-                EPPLMS
+                {platformConfig.platform_name}
               </p>
               <p className="mt-1 text-[10px] uppercase tracking-[0.25em] text-gold-400">
-                EPP Learning Platform
+                {platformConfig.institution_name || "Learning Platform"}
               </p>
             </div>
           </div>
@@ -94,12 +96,16 @@ function LoginInner() {
             </h1>
             <p className="mt-6 text-[15px] leading-relaxed text-cream-200/85">
               Sign in with a local password or continue with Google if your
-              account has already been invited and linked in EPPLMS.
+              account has already been invited and linked in{" "}
+              {platformConfig.platform_name}.
             </p>
           </div>
 
           <div className="text-xs text-cream-300/70">
-            Paragon Int&apos;l University · Phnom Penh, Cambodia
+            {platformConfig.institution_name}
+            {platformConfig.institution_location
+              ? ` · ${platformConfig.institution_location}`
+              : ""}
           </div>
         </div>
       </section>
@@ -113,10 +119,10 @@ function LoginInner() {
               </span>
               <div>
                 <p className="text-sm font-bold tracking-[0.22em] text-navy-900">
-                  EPPLMS
+                  {platformConfig.platform_name}
                 </p>
                 <p className="mt-1 text-[10px] uppercase tracking-[0.25em] text-gold-700">
-                  Learning Platform
+                  {platformConfig.institution_name || "Learning Platform"}
                 </p>
               </div>
             </div>
@@ -199,8 +205,8 @@ function LoginInner() {
               </p>
 
               <p className="text-center text-[11px] text-ink-500">
-                Missing your invite? Contact your EPPLMS administrator or
-                director.
+                Missing your invite? Contact your{" "}
+                {platformConfig.platform_name} administrator or director.
               </p>
             </div>
           </div>
