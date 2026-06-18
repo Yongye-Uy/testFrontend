@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { useAuth, AuthProvider } from "@/hooks/use-auth";
 import { useSidebar } from "@/hooks/use-sidebar";
+import { usePlatformConfig } from "@/hooks/use-platform-config";
 import { isDirector } from "@/lib/auth";
 import { api } from "@/lib/api-client";
 import {
@@ -25,6 +26,7 @@ import type { User } from "@/types/user";
 function LayoutInner({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
   const { mobileOpen, setMobileOpen, collapsed, setCollapsed } = useSidebar();
+  const platformConfig = usePlatformConfig();
   const router = useRouter();
   const pathname = usePathname();
   const director = isDirector(user);
@@ -93,11 +95,13 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
         >
           <Link href="/dashboard" className="min-w-0">
             <div className="text-sm font-bold tracking-[0.2em] text-navy-900">
-              {collapsed ? "EP" : "EPPLMS"}
+              {collapsed
+                ? platformConfig.platform_name.slice(0, 2).toUpperCase()
+                : platformConfig.platform_name}
             </div>
             {!collapsed && (
               <div className="text-[10px] uppercase tracking-widest text-gold-700">
-                Learning Platform
+                {platformConfig.institution_name || "Learning Platform"}
               </div>
             )}
           </Link>
@@ -210,6 +214,27 @@ function SidebarLink({
 }) {
   const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
   const Icon = item.icon;
+
+  if (item.comingSoon) {
+    return (
+      <span
+        title={collapsed ? item.label : undefined}
+        className={`group relative flex cursor-not-allowed items-center rounded-lg text-sm font-medium opacity-50 ${collapsed ? "justify-center px-2 py-2.5" : "justify-between px-3 py-2"} text-ink-500`}
+      >
+        <span className={`flex min-w-0 items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
+          <span className="shrink-0">
+            {Icon ? <Icon style={{ fontSize: 20 }} /> : null}
+          </span>
+          <span className={collapsed ? "lg:hidden" : ""}>{item.label}</span>
+        </span>
+        {!collapsed && (
+          <span className="rounded-full bg-ink-100 px-2 py-0.5 text-[10px] text-ink-500 ring-1 ring-ink-200">
+            Soon
+          </span>
+        )}
+      </span>
+    );
+  }
 
   return (
     <Link
