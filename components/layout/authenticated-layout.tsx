@@ -14,7 +14,7 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 import { useAuth, AuthProvider } from "@/hooks/use-auth";
 import { useSidebar } from "@/hooks/use-sidebar";
 import { usePlatformConfig } from "@/hooks/use-platform-config";
-import { isDirector, isSuperAdmin } from "@/lib/auth";
+import { isDirector, isStudent, isSuperAdmin } from "@/lib/auth";
 import { api } from "@/lib/api-client";
 import {
   sidebarForPermissions,
@@ -31,6 +31,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const director = isDirector(user);
+  const student = isStudent(user);
 
   const [userPermissions, setUserPermissions] = useState<string[] | null>(null);
 
@@ -123,7 +124,9 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
                 ? "Super Admin"
                 : director
                   ? "Director Portal"
-                  : "Portal"}
+                  : student
+                    ? "Student Portal"
+                    : "Portal"}
             </p>
           </div>
         )}
