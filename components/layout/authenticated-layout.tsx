@@ -14,13 +14,14 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 import { useAuth, AuthProvider } from "@/hooks/use-auth";
 import { useSidebar } from "@/hooks/use-sidebar";
 import { usePlatformConfig } from "@/hooks/use-platform-config";
-import { isDirector } from "@/lib/auth";
+import { isDirector, isSuperAdmin } from "@/lib/auth";
 import { api } from "@/lib/api-client";
 import {
   sidebarForPermissions,
   sidebarForUser,
   type SidebarItem,
 } from "@/lib/sidebar";
+import { PermissionsContext } from "@/contexts/permissions-context";
 import type { User } from "@/types/user";
 
 function LayoutInner({ children }: { children: React.ReactNode }) {
@@ -44,9 +45,17 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
       .catch(() => setUserPermissions(null)); // on error, keep role-based fallback
   }, [user?.id, pathname]); // re-fetch on navigation so sidebar reflects permission changes
 
+  const permCtxValue = {
+    permissions: userPermissions,
+    hasPermission: (code: string) => {
+      if (isSuperAdmin(user)) return true;
+      return userPermissions?.includes(code) ?? false;
+    },
+  };
+
   // Use permission-based items once loaded; role-based fallback avoids flash.
   const items =
-    userPermissions !== null
+    userPermissions !== null && !isSuperAdmin(user)
       ? sidebarForPermissions(userPermissions)
       : sidebarForUser(user);
   const groups = director ? directorGroups(items) : [{ label: "", items }];
@@ -183,7 +192,9 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
         </header>
 
         <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4 lg:px-6">
-          {children}
+          <PermissionsContext.Provider value={permCtxValue}>
+            {children}
+          </PermissionsContext.Provider>
         </main>
       </div>
     </div>

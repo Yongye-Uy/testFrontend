@@ -8,8 +8,10 @@ import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
+import { AccessDenied } from "@/components/shared/access-denied";
 import { Button } from "@/components/ui/button";
 import { api, type LokiStream } from "@/lib/api-client";
+import { usePermission } from "@/hooks/use-permission";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -157,6 +159,9 @@ function exportCSV(rows: ParsedLogLine[]) {
 // ---------------------------------------------------------------------------
 
 export function ObservabilityPage() {
+  const { hasPermission, isSuperAdmin } = usePermission();
+  const canRead = hasPermission("config.read") || isSuperAdmin;
+
   const [rows, setRows]       = useState<ParsedLogLine[]>([]);
   const [stats, setStats]     = useState<Stats>({ total: 0, errors: 0, warnings: 0, p95ms: null });
   const [loading, setLoading] = useState(true);
@@ -172,6 +177,7 @@ export function ObservabilityPage() {
   const fetchIdRef = useRef(0);
 
   const fetchLogs = useCallback(async () => {
+    if (!canRead) { setLoading(false); return; }
     const id = ++fetchIdRef.current;
     setLoading(true);
     setError("");
@@ -192,9 +198,14 @@ export function ObservabilityPage() {
       parsed.sort((a, b) => (b.tsRaw > a.tsRaw ? 1 : -1));
       setRows(parsed);
       setPage(1);
-    } catch {
+    } catch (err: unknown) {
       if (id !== fetchIdRef.current) return;
-      setError("Failed to load logs. Check that Loki is running.");
+      const status = (err as { status?: number })?.status;
+      setError(
+        status === 403
+          ? "You don't have permission to view observability logs."
+          : "Failed to load logs. Check that Loki is running.",
+      );
     } finally {
       if (id === fetchIdRef.current) setLoading(false);
     }
@@ -220,6 +231,10 @@ export function ObservabilityPage() {
 
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const visibleRows = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  if (!canRead) {
+    return <AccessDenied message="You need the config.read permission to view observability logs." />;
+  }
 
   return (
     <div className="space-y-6">

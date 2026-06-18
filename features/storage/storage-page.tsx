@@ -5,13 +5,16 @@ import ChevronLeftOutlinedIcon from "@mui/icons-material/ChevronLeftOutlined";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
+import { AccessDenied } from "@/components/shared/access-denied";
 import { Card } from "@/components/ui/card";
 import {
   api,
+  ApiError,
   type StorageFileItem,
   type StorageStatsResponse,
   type StorageFilesResponse,
 } from "@/lib/api-client";
+import { usePermission } from "@/hooks/use-permission";
 
 const PAGE_SIZE = 20;
 
@@ -54,6 +57,9 @@ function linkedTo(file: StorageFileItem) {
 }
 
 export function StoragePage() {
+  const { hasPermission, isSuperAdmin } = usePermission();
+  const canRead = hasPermission("config.read") || isSuperAdmin;
+
   const [stats, setStats] = useState<StorageStatsResponse | null>(null);
   const [files, setFiles] = useState<StorageFilesResponse | null>(null);
   const [page, setPage] = useState(1);
@@ -61,13 +67,21 @@ export function StoragePage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!canRead) return;
     api.storage
       .stats()
       .then(setStats)
-      .catch(() => setError("Failed to load storage stats."));
-  }, []);
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 403) {
+          setError("You don't have permission to view storage stats.");
+        } else {
+          setError("Failed to load storage stats.");
+        }
+      });
+  }, [canRead]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (!canRead) { setLoading(false); return; }
     setLoading(true);
     api.storage
       .files(page, PAGE_SIZE)
@@ -80,6 +94,10 @@ export function StoragePage() {
         setLoading(false);
       });
   }, [page]);
+
+  if (!canRead) {
+    return <AccessDenied message="You need the config.read permission to view storage management." />;
+  }
 
   const totalFiles = Number(stats?.total_files ?? 0);
   const totalPages = files ? Math.ceil(Number(files.total) / PAGE_SIZE) : 1;

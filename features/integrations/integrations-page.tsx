@@ -7,11 +7,14 @@ import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
+import { AccessDenied } from "@/components/shared/access-denied";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
+import { usePermission } from "@/hooks/use-permission";
 import {
   api,
+  ApiError,
   type GoogleOAuthConfig,
   type IntegrationsConfig,
   type IntegrationService,
@@ -65,9 +68,12 @@ function relativeTime(date: Date): string {
 
 export function IntegrationsPage() {
   const { user } = useAuth();
+  const { hasPermission, isSuperAdmin } = usePermission();
+  const canRead   = hasPermission("integration.read")   || isSuperAdmin;
+  const canUpdate = hasPermission("integration.update") || isSuperAdmin;
+
   const [cfg, setCfg] = useState<IntegrationsConfig>(DEFAULT_CFG);
   const [loadError, setLoadError] = useState("");
-  const [canUpdate, setCanUpdate] = useState(false);
   const [allStatus, setAllStatus] = useState<AllStatus>({
     google_oauth: { ...IDLE },
     smtp: { ...IDLE },
@@ -77,19 +83,18 @@ export function IntegrationsPage() {
     useState<IntegrationService | null>(null);
 
   useEffect(() => {
+    if (!canRead) return;
     api.integrations
       .get()
       .then(setCfg)
-      .catch(() => setLoadError("Failed to load integration credentials."));
-  }, []);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    api.users
-      .getPermissions(user.id)
-      .then((perms) => setCanUpdate(perms.includes("integration.update")))
-      .catch(() => setCanUpdate(false));
-  }, [user?.id]);
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 403) {
+          setLoadError("You don't have permission to view integration credentials.");
+        } else {
+          setLoadError("Failed to load integration credentials.");
+        }
+      });
+  }, [canRead]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function testConnection(service: IntegrationService) {
     setAllStatus((prev) => ({
@@ -133,6 +138,10 @@ export function IntegrationsPage() {
     { key: "R2_ACCESS_KEY_ID", value: cfg.r2.access_key_id },
     { key: "R2_SECRET_ACCESS_KEY", value: cfg.r2.secret_access_key },
   ];
+
+  if (!canRead) {
+    return <AccessDenied message="You need the integration.read permission to manage integrations." />;
+  }
 
   return (
     <div className="space-y-8">

@@ -5,12 +5,14 @@ import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
 import SecurityOutlinedIcon from "@mui/icons-material/SecurityOutlined";
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
+import { AccessDenied } from "@/components/shared/access-denied";
 import { ErrorState } from "@/components/shared/error-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, inputClass } from "@/components/ui/field";
-import { api, type PlatformConfig } from "@/lib/api-client";
+import { api, ApiError, type PlatformConfig } from "@/lib/api-client";
 import { invalidatePlatformConfigCache } from "@/hooks/use-platform-config";
+import { usePermission } from "@/hooks/use-permission";
 
 const DEFAULT_CFG: PlatformConfig = {
   platform_name: "",
@@ -23,6 +25,10 @@ const DEFAULT_CFG: PlatformConfig = {
 };
 
 export function ConfigurationPage() {
+  const { hasPermission, isSuperAdmin } = usePermission();
+  const canRead   = hasPermission("config.read")   || isSuperAdmin;
+  const canUpdate = hasPermission("config.update")  || isSuperAdmin;
+
   const [cfg, setCfg] = useState<PlatformConfig>(DEFAULT_CFG);
   const [domainsInput, setDomainsInput] = useState("");
   const [loading, setLoading] = useState(true);
@@ -32,15 +38,22 @@ export function ConfigurationPage() {
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
+    if (!canRead) { setLoading(false); return; }
     api.platformConfig
       .get()
       .then((data) => {
         setCfg(data);
         setDomainsInput((data.allowed_email_domains ?? []).join(", "));
       })
-      .catch(() => setError("Failed to load configuration."))
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 403) {
+          setError("You don't have permission to read configuration.");
+        } else {
+          setError("Failed to load configuration.");
+        }
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [canRead]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function update<K extends keyof PlatformConfig>(key: K, value: PlatformConfig[K]) {
     setCfg((prev) => ({ ...prev, [key]: value }));
@@ -64,7 +77,11 @@ export function ConfigurationPage() {
       setSuccess(true);
       setDirty(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save configuration.");
+      if (err instanceof ApiError && err.status === 403) {
+        setError("You don't have permission to update configuration.");
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to save configuration.");
+      }
     } finally {
       setSaving(false);
     }
@@ -78,6 +95,10 @@ export function ConfigurationPage() {
       setSuccess(false);
       setError("");
     });
+  }
+
+  if (!loading && !canRead) {
+    return <AccessDenied message="You need the config.read permission to view system configuration." />;
   }
 
   if (loading) {
@@ -96,10 +117,10 @@ export function ConfigurationPage() {
         breadcrumbs={[{ label: "Home" }, { label: "Configuration" }]}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={handleDiscard} disabled={!dirty || saving}>
+            <Button variant="secondary" onClick={handleDiscard} disabled={!dirty || saving || !canUpdate}>
               Discard changes
             </Button>
-            <Button onClick={() => void handleSave()} loading={saving} disabled={!dirty}>
+            <Button onClick={() => void handleSave()} loading={saving} disabled={!dirty || !canUpdate}>
               Save all
             </Button>
           </div>

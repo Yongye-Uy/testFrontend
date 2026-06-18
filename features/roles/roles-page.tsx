@@ -16,6 +16,8 @@ import type { Permission } from "@/types/permission";
 import type { Role } from "@/types/role";
 import type { User } from "@/types/user";
 import { useAsync } from "@/features/shared/use-async";
+import { AccessDenied } from "@/components/shared/access-denied";
+import { usePermission } from "@/hooks/use-permission";
 
 type PanelTab = "display" | "permissions" | "members";
 
@@ -92,6 +94,10 @@ function UserAvatar({ name }: { name: string }) {
 }
 
 export function RolesPage() {
+  const { hasPermission, isSuperAdmin } = usePermission();
+  const canRead   = hasPermission("role.read")        || isSuperAdmin;
+  const canAssign = hasPermission("permission.assign") || isSuperAdmin;
+
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [tab, setTab] = useState<PanelTab>("permissions");
   const [createOpen, setCreateOpen] = useState(false);
@@ -334,16 +340,20 @@ export function RolesPage() {
         role display and permission changes together.
       </div>
 
+      {!loading && !canRead && (
+        <AccessDenied message="You need the role.read permission to view roles and permissions." />
+      )}
+
       {loading && <SkeletonList count={5} />}
       {error && <ErrorState message={error} />}
-      {!loading && !error && roles.length === 0 && (
+      {!loading && !error && canRead && roles.length === 0 && (
         <EmptyState
           title="No roles"
           description="Create a role to start configuring permissions and members."
         />
       )}
 
-      {!loading && !error && activeRole && (
+      {!loading && !error && canRead && activeRole && (
         <div className="grid grid-cols-1 gap-5 lg:[grid-template-columns:260px_minmax(0,1fr)]">
           <Card className="overflow-hidden !p-0">
             <div className="flex items-center justify-between border-b border-ink-100 px-4 py-3">
@@ -593,7 +603,7 @@ export function RolesPage() {
                                   </div>
                                   <Toggle
                                     checked={enabled}
-                                    disabled={saveLoading}
+                                    disabled={saveLoading || !canAssign}
                                     onChange={() =>
                                       setDraftPermissionIds((current) =>
                                         current.includes(permission.id)
