@@ -602,6 +602,31 @@ function withQuery(path: string, params?: URLSearchParams) {
   return query ? `${path}?${query}` : path;
 }
 
+export interface ObservabilityLogsParams {
+  query?: string;
+  limit?: number;
+  start: number; // nanoseconds
+  end: number;   // nanoseconds
+}
+
+export interface LokiStreamValue {
+  ts: string;
+  line: string;
+}
+
+export interface LokiStream {
+  stream: Record<string, string>;
+  values: [string, string][]; // [timestamp_ns, log_line]
+}
+
+export interface LokiQueryResponse {
+  status: string;
+  data: {
+    resultType: string;
+    result: LokiStream[];
+  };
+}
+
 export interface StorageTypeStat {
   material_type: string;
   file_count: string;
@@ -1543,6 +1568,44 @@ export const api = {
       request<StorageStatsResponse>("course", "/storage/stats"),
     files: (page: number, pageSize = 20) =>
       request<StorageFilesResponse>("course", `/storage/files?page=${page}&page_size=${pageSize}`),
+  },
+
+  observability: {
+    logs: (params: ObservabilityLogsParams) => {
+      const qs = new URLSearchParams({
+        query: params.query || "{}",
+        limit: String(params.limit ?? 50),
+        start: String(params.start),
+        end: String(params.end),
+        direction: "backward",
+      });
+      return fetch(`/api/observability/logs/query_range?${qs}`, {
+        headers: { Authorization: `Bearer ${getAccessToken()}` },
+      }).then((r) => r.json() as Promise<LokiQueryResponse>);
+    },
+    stats: (params: { start: number; end: number }) => {
+      const rangeS = Math.round((params.end - params.start) / 1e9);
+      // severity_text is OTLP structured metadata — use label filter after stream selector.
+      const errorQs = new URLSearchParams({
+        query: `count_over_time({service_name=~".+"} | severity_text="ERROR" [${rangeS}s])`,
+        time: String(params.end),
+      });
+      const warnQs = new URLSearchParams({
+        query: `count_over_time({service_name=~".+"} | severity_text="WARN" [${rangeS}s])`,
+        time: String(params.end),
+      });
+      const totalQs = new URLSearchParams({
+        query: `count_over_time({service_name=~".+"}[${rangeS}s])`,
+        time: String(params.end),
+      });
+      const auth = { Authorization: `Bearer ${getAccessToken()}` };
+      return Promise.all([
+        fetch(`/api/observability/logs/query?${errorQs}`, { headers: auth }).then((r) => r.json()),
+        fetch(`/api/observability/logs/query?${warnQs}`, { headers: auth }).then((r) => r.json()),
+        fetch(`/api/observability/logs/query?${totalQs}`, { headers: auth }).then((r) => r.json()),
+        fetch(`/api/observability/metrics/query?query=histogram_quantile(0.95%2C+sum(rate(http_request_duration_seconds_bucket%5B5m%5D))+by+(le))`, { headers: auth }).then((r) => r.json()),
+      ]);
+    },
   },
 };
 

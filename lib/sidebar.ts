@@ -95,7 +95,6 @@ const ALL_SIDEBAR_ITEMS: SidebarItem[] = [
     href: "/observability",
     icon: BarChartOutlinedIcon,
     permission: "config.read",
-    comingSoon: true,
   },
 ];
 
