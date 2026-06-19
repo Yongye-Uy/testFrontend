@@ -11,7 +11,13 @@ import { useAsync } from "@/features/shared/use-async";
 import { questionTypeLabel } from "./assessment-utils";
 import { QuestionEditor } from "./question-editor";
 
-export function QuestionsPanel({ assessmentId }: { assessmentId: string }) {
+export function QuestionsPanel({
+  assessmentId,
+  onCountChange,
+}: {
+  assessmentId: string;
+  onCountChange?: (count: number) => void;
+}) {
   const questions = useAsync(
     () => api.assessments.questions(assessmentId),
     [assessmentId],
@@ -23,6 +29,7 @@ export function QuestionsPanel({ assessmentId }: { assessmentId: string }) {
   useEffect(() => {
     if (!questions.data) return;
     const rows = questions.data.questions;
+    onCountChange?.(rows.length);
     if (rows.length === 0) {
       setSelectedId(null);
       return;
@@ -30,7 +37,7 @@ export function QuestionsPanel({ assessmentId }: { assessmentId: string }) {
     if (!selectedId || !rows.some((row) => row.id === selectedId)) {
       setSelectedId(rows[0].id);
     }
-  }, [questions.data, selectedId]);
+  }, [questions.data, selectedId, onCountChange]);
 
   async function addQuestion() {
     setAdding(true);

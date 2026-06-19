@@ -1127,6 +1127,7 @@ function AddMaterialModal({
     linkUrl: "",
   });
   const [source, setSource] = useState<"upload" | "link">("link");
+  const [file, setFile] = useState<File | null>(null);
   const [setOpenDate, setSetOpenDate] = useState(false);
   const [openDateValue, setOpenDateValue] = useState("");
   const [unlockRule, setUnlockRule] = useState(false);
@@ -1139,16 +1140,50 @@ function AddMaterialModal({
       setError("Material title is required.");
       return;
     }
+    if (source === "upload" && !file) {
+      setError("Choose a file to upload.");
+      return;
+    }
+    if (source === "upload" && file && file.size > 50 * 1024 * 1024) {
+      setError("File is larger than the 50 MB limit.");
+      return;
+    }
+    if (source === "link" && !form.linkUrl.trim()) {
+      setError("Link URL is required.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
-      await api.lessons.addMaterial(classId, lessonId, {
-        title: form.title.trim(),
-        description: form.description.trim(),
-        type: "link",
-        linkUrl: form.linkUrl.trim(),
-      });
+      if (source === "upload" && file) {
+        // 1) presign  2) upload bytes to storage  3) attach to the lesson
+        const contentType = file.type || "application/octet-stream";
+        const { uploadUrl, objectKey } = await api.lessons.getMaterialUploadURL(
+          classId,
+          file.name,
+          contentType,
+        );
+        await api.lessons.uploadMaterialFile(uploadUrl, file);
+        await api.lessons.addMaterial(classId, lessonId, {
+          title: form.title.trim(),
+          description: form.description.trim(),
+          type: "document",
+          file: {
+            object_key: objectKey,
+            file_name: file.name,
+            mime_type: contentType,
+          },
+        });
+      } else {
+        await api.lessons.addMaterial(classId, lessonId, {
+          title: form.title.trim(),
+          description: form.description.trim(),
+          type: "link",
+          linkUrl: form.linkUrl.trim(),
+        });
+      }
       setForm({ title: "", description: "", linkUrl: "" });
+      setFile(null);
       setSource("link");
       await onDone();
     } catch (err) {
@@ -1170,13 +1205,8 @@ function AddMaterialModal({
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            variant="gold"
-            loading={loading}
-            disabled={source === "upload"}
-            onClick={submit}
-          >
-            Save material
+          <Button variant="gold" loading={loading} onClick={submit}>
+            {loading && source === "upload" ? "Uploading…" : "Save material"}
           </Button>
         </>
       }
@@ -1234,22 +1264,38 @@ function AddMaterialModal({
           </div>
 
           {source === "upload" ? (
-            <div className="mt-3 rounded-xl border-2 border-dashed border-ink-200 bg-cream-50/60 px-6 py-10 text-center">
+            <label className="mt-3 block cursor-pointer rounded-xl border-2 border-dashed border-ink-200 bg-cream-50/60 px-6 py-10 text-center transition hover:border-navy-300">
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.doc,.docx,.txt"
+                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+              />
               <CloudUploadOutlinedIcon
                 sx={{ fontSize: 28 }}
                 className="text-ink-400"
               />
-              <p className="mt-2 font-semibold text-navy-900">
-                Drop file or click to upload
-              </p>
-              <p className="mt-1 text-xs text-ink-500">
-                PDF, DOCX, DOC, or TXT · max 50 MB
-              </p>
-              <p className="mt-3 text-xs font-semibold text-gold-700">
-                File hosting isn&apos;t connected to storage yet — use “Add
-                link” to save a material for now.
-              </p>
-            </div>
+              {file ? (
+                <>
+                  <p className="mt-2 font-semibold text-navy-900">
+                    {file.name}
+                  </p>
+                  <p className="mt-1 text-xs text-ink-500">
+                    {(file.size / 1024 / 1024).toFixed(2)} MB · click to choose
+                    a different file
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="mt-2 font-semibold text-navy-900">
+                    Drop file or click to upload
+                  </p>
+                  <p className="mt-1 text-xs text-ink-500">
+                    PDF, DOCX, DOC, or TXT · max 50 MB
+                  </p>
+                </>
+              )}
+            </label>
           ) : (
             <div className="mt-3">
               <Field label="Link URL">
@@ -1337,6 +1383,7 @@ function AddAssessmentModal({
   onClose: () => void;
   onDone: () => Promise<void>;
 }) {
+  const router = useRouter();
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -1347,6 +1394,15 @@ function AddAssessmentModal({
         : Promise.resolve({ assessments: [] }),
     [lessonId],
   );
+
+  function buildNew() {
+    if (!lessonId) return;
+    router.push(
+      `/assessments/new?classId=${encodeURIComponent(
+        classId,
+      )}&lessonId=${encodeURIComponent(lessonId)}`,
+    );
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -1378,10 +1434,19 @@ function AddAssessmentModal({
         {assessments.error && <ErrorState message={assessments.error} />}
         {!assessments.loading &&
           (assessments.data?.assessments.length ?? 0) === 0 && (
-            <p className="rounded-xl bg-cream-100 px-4 py-6 text-center text-sm text-ink-600">
-              You haven&apos;t authored any assessments yet. Create one from the
-              Assessments page first.
-            </p>
+            <div className="rounded-xl bg-cream-100 px-4 py-6 text-center">
+              <p className="text-sm text-ink-600">
+                You haven&apos;t authored any assessments yet.
+              </p>
+              <Button
+                type="button"
+                variant="gold"
+                className="mt-3"
+                onClick={buildNew}
+              >
+                Build new assessment
+              </Button>
+            </div>
           )}
         {(assessments.data?.assessments.length ?? 0) > 0 && (
           <div className="max-h-[320px] space-y-2 overflow-y-auto rounded-xl border border-ink-100 bg-white p-3">
@@ -1416,11 +1481,18 @@ function AddAssessmentModal({
           </div>
         )}
         {error && <ErrorState message={error} />}
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
+        <div className="flex items-center justify-between gap-2">
+          <Button type="button" variant="ghost" onClick={buildNew}>
+            <AddRoundedIcon sx={{ fontSize: 16 }} /> Build new assessment
           </Button>
-          <Button loading={loading}>Add assessment</Button>
+          <div className="flex gap-2">
+            <Button type="button" variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button loading={loading} disabled={!selectedId}>
+              Add assessment
+            </Button>
+          </div>
         </div>
       </form>
     </Modal>

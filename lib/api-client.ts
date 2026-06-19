@@ -652,7 +652,7 @@ export interface ObservabilityLogsParams {
   query?: string;
   limit?: number;
   start: number; // nanoseconds
-  end: number;   // nanoseconds
+  end: number; // nanoseconds
 }
 
 export interface LokiStreamValue {
@@ -1243,6 +1243,7 @@ export const api = {
         description?: string;
         type: string;
         linkUrl?: string;
+        file?: { object_key: string; file_name: string; mime_type: string };
       },
     ) =>
       request<{ lesson_item?: unknown }>(
@@ -1259,9 +1260,55 @@ export const api = {
             ...(body.type === "link" && body.linkUrl
               ? { link: { external_url: body.linkUrl, link_title: body.title } }
               : {}),
+            ...(body.file
+              ? {
+                  file: {
+                    file_object_key: body.file.object_key,
+                    file_name: body.file.file_name,
+                    mime_type: body.file.mime_type,
+                  },
+                }
+              : {}),
           }),
         },
       ).then((response) => normalizeLessonItem(response.lesson_item)),
+    // Step 1 of file upload: ask course-service for a presigned PUT URL.
+    getMaterialUploadURL: (
+      classId: string,
+      fileName: string,
+      contentType: string,
+    ) =>
+      request<{ upload_url?: string; object_key?: string }>(
+        "course",
+        `/classes/${classId}/materials/upload-url`,
+        {
+          method: "POST",
+          ...jsonBody({
+            class_id: Number(classId),
+            file_name: fileName,
+            content_type: contentType,
+          }),
+        },
+      ).then((response) => ({
+        uploadUrl: response.upload_url ?? "",
+        objectKey: response.object_key ?? "",
+      })),
+    // Step 2: upload the file bytes directly to storage (R2) via the presigned
+    // PUT URL. This is a cross-origin request to the storage host, so it does
+    // not go through the gateway and carries no auth header.
+    uploadMaterialFile: async (uploadUrl: string, file: File) => {
+      const response = await fetch(uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+      });
+      if (!response.ok) {
+        throw new ApiError(
+          response.status,
+          `File upload failed (${response.status}). The storage bucket may be missing a CORS rule for this origin.`,
+        );
+      }
+    },
     addAssessment: (classId: string, lessonId: string, assessmentId: string) =>
       request<{ lesson_item?: unknown }>(
         "course",
@@ -1594,26 +1641,33 @@ export const api = {
   },
   integrations: {
     get: () =>
-      request<{ integrations: IntegrationsConfig }>("user", "/integrations").then(
-        (r) => r.integrations,
-      ),
+      request<{ integrations: IntegrationsConfig }>(
+        "user",
+        "/integrations",
+      ).then((r) => r.integrations),
     update: (integrations: IntegrationsConfig) =>
       request<{ integrations: IntegrationsConfig }>("user", "/integrations", {
         method: "PUT",
         ...jsonBody({ integrations }),
       }).then((r) => r.integrations),
     test: (service: IntegrationService) =>
-      request<{ success: boolean; message: string }>("user", "/integrations/test", {
-        method: "POST",
-        ...jsonBody({ service }),
-      }),
+      request<{ success: boolean; message: string }>(
+        "user",
+        "/integrations/test",
+        {
+          method: "POST",
+          ...jsonBody({ service }),
+        },
+      ),
   },
 
   storage: {
-    stats: () =>
-      request<StorageStatsResponse>("course", "/storage/stats"),
+    stats: () => request<StorageStatsResponse>("course", "/storage/stats"),
     files: (page: number, pageSize = 20) =>
-      request<StorageFilesResponse>("course", `/storage/files?page=${page}&page_size=${pageSize}`),
+      request<StorageFilesResponse>(
+        "course",
+        `/storage/files?page=${page}&page_size=${pageSize}`,
+      ),
   },
 
   observability: {
@@ -1646,10 +1700,19 @@ export const api = {
       });
       const auth = { Authorization: `Bearer ${getAccessToken()}` };
       return Promise.all([
-        fetch(`/api/observability/logs/query?${errorQs}`, { headers: auth }).then((r) => r.json()),
-        fetch(`/api/observability/logs/query?${warnQs}`, { headers: auth }).then((r) => r.json()),
-        fetch(`/api/observability/logs/query?${totalQs}`, { headers: auth }).then((r) => r.json()),
-        fetch(`/api/observability/metrics/query?query=histogram_quantile(0.95%2C+sum(rate(http_request_duration_seconds_bucket%5B5m%5D))+by+(le))`, { headers: auth }).then((r) => r.json()),
+        fetch(`/api/observability/logs/query?${errorQs}`, {
+          headers: auth,
+        }).then((r) => r.json()),
+        fetch(`/api/observability/logs/query?${warnQs}`, {
+          headers: auth,
+        }).then((r) => r.json()),
+        fetch(`/api/observability/logs/query?${totalQs}`, {
+          headers: auth,
+        }).then((r) => r.json()),
+        fetch(
+          `/api/observability/metrics/query?query=histogram_quantile(0.95%2C+sum(rate(http_request_duration_seconds_bucket%5B5m%5D))+by+(le))`,
+          { headers: auth },
+        ).then((r) => r.json()),
       ]);
     },
   },
