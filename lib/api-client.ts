@@ -42,7 +42,7 @@ type ServiceName = "user" | "course" | "assessment" | "integration";
 
 const userBaseUrl = "/api";
 const courseBaseUrl = "/api";
-const assessmentBaseUrl = "/api/assessments";
+const assessmentBaseUrl = "/api";
 const integrationBaseUrl = "/api";
 
 const serviceBaseUrls: Record<ServiceName, string> = {
@@ -406,10 +406,33 @@ function normalizeClass(raw: unknown): ClassOffering {
   return {
     id: toStringId(value.id),
     semester_id: toStringId(value.semester_id),
+    semester_title: typeof value.semester_title === "string" ? value.semester_title : undefined,
+    semester_status: typeof value.semester_status === "string" ? value.semester_status : undefined,
     course_id: toStringId(value.course_id),
+    course_title: typeof value.course_title === "string" ? value.course_title : undefined,
+    course_code: typeof value.course_code === "string" ? value.course_code : undefined,
+    lecturer_id: value.lecturer_id ? toStringId(value.lecturer_id) : null,
+    lecturer_name: typeof value.lecturer_name === "string" ? value.lecturer_name : undefined,
+    status: String(value.status ?? "active"),
+    created_by: toStringId(value.created_by),
+    enrollment_count: typeof value.enrollment_count === "number" ? value.enrollment_count : undefined,
+  };
+}
+
+function normalizeClassOffering(raw: unknown): ClassOffering {
+  const value = (raw ?? {}) as Record<string, unknown>;
+  return {
+    id: toStringId(value.id),
+    semester_id: toStringId(value.semester_id),
+    semester_title: typeof value.semester_title === "string" ? value.semester_title : undefined,
+    semester_status: typeof value.semester_status === "string" ? value.semester_status : undefined,
+    course_id: toStringId(value.course_id),
+    course_title: typeof value.course_title === "string" ? value.course_title : undefined,
+    course_code: typeof value.course_code === "string" ? value.course_code : undefined,
     lecturer_id: value.lecturer_id ? toStringId(value.lecturer_id) : null,
     status: String(value.status ?? "active"),
     created_by: toStringId(value.created_by),
+    enrollment_count: typeof value.enrollment_count === "number" ? value.enrollment_count : undefined,
   };
 }
 
@@ -534,6 +557,14 @@ function normalizeLessonItem(raw: unknown): LessonItem {
     ),
     link_url:
       !isAssessment && link.external_url ? String(link.external_url) : null,
+    view_url: (() => {
+      if (isAssessment) return null;
+      const file = (material.file ?? {}) as Record<string, unknown>;
+      if (typeof file.view_url === "string" && file.view_url) return file.view_url;
+      return null;
+    })(),
+    progress_status: typeof value.progress_status === "string" ? value.progress_status : undefined,
+    require_previous: typeof value.require_previous === "boolean" ? value.require_previous : undefined,
   };
 }
 
@@ -1202,6 +1233,11 @@ export const api = {
       ).then((response) => ({
         enrollments: (response.enrollments ?? []).map(normalizeEnrollment),
       })),
+    progress: (classId: string, lessonItemId: string, status: "in_progress" | "completed") =>
+      request<{ lesson_completed?: boolean }>("course", `/classes/${classId}/lesson-items/${lessonItemId}/progress`, {
+        method: "POST",
+        ...jsonBody({ status }),
+      }),
   },
   lessons: {
     listForClass: (classId: string) =>
@@ -1211,6 +1247,34 @@ export const api = {
       ).then((response) => ({
         lessons: (response.lessons ?? []).map(normalizeLesson),
       })),
+    listForStudentClass: async (classId: string) => {
+      const response = await request<{ lessons?: unknown[] }>(
+        "course",
+        `/classes/${classId}/lessons`,
+      );
+      let lessons = (response.lessons ?? []).map(normalizeLesson);
+
+      lessons = lessons.filter((l) => l.item_count > 0);
+
+      lessons = await Promise.all(
+        lessons.map(async (lesson) => {
+          try {
+            const detail = await request<{ items?: unknown[] }>(
+              "course",
+              `/classes/${classId}/lessons/${lesson.id}`
+            );
+            // Wait, does backend return published items only for students?
+            // Actually the backend might return everything for GetLesson, but we only have is_unlocked.
+            // We just map it.
+            lesson.items = (detail.items ?? []).map(normalizeLessonItem);
+            return lesson;
+          } catch (e) {
+            return lesson;
+          }
+        })
+      );
+      return { lessons };
+    },
     create: (classId: string, title: string) =>
       request<{ lesson?: unknown }>("course", `/classes/${classId}/lessons`, {
         method: "POST",
@@ -1235,6 +1299,16 @@ export const api = {
           }),
         },
       ).then((response) => normalizeLesson(response.lesson)),
+    getUploadUrl: (classId: string, fileName: string, contentType: string) =>
+      request<{ upload_url: string; object_key: string }>(
+        "course",
+        `/classes/${classId}/materials/upload-url`,
+        {
+          method: "POST",
+          ...jsonBody({ class_id: Number(classId), file_name: fileName, content_type: contentType }),
+        },
+      ),
+
     addMaterial: (
       classId: string,
       lessonId: string,
@@ -1243,6 +1317,10 @@ export const api = {
         description?: string;
         type: string;
         linkUrl?: string;
+        file?: { fileObjectKey: string; fileName: string; mimeType: string };
+        requirePrevious?: boolean;
+        requireOpenDate?: boolean;
+        scheduledOpenDate?: string; // RFC3339
       },
     ) =>
       request<{ lesson_item?: unknown }>(
@@ -1259,10 +1337,21 @@ export const api = {
             ...(body.type === "link" && body.linkUrl
               ? { link: { external_url: body.linkUrl, link_title: body.title } }
               : {}),
+            ...(body.file
+              ? { file: { file_object_key: body.file.fileObjectKey, file_name: body.file.fileName, mime_type: body.file.mimeType } }
+              : {}),
+            ...(body.requirePrevious !== undefined ? { require_previous: body.requirePrevious } : {}),
+            ...(body.requireOpenDate !== undefined ? { require_open_date: body.requireOpenDate } : {}),
+            ...(body.scheduledOpenDate ? { scheduled_open_date: body.scheduledOpenDate } : {}),
           }),
         },
       ).then((response) => normalizeLessonItem(response.lesson_item)),
-    addAssessment: (classId: string, lessonId: string, assessmentId: string) =>
+    addAssessment: (
+      classId: string,
+      lessonId: string,
+      assessmentId: string,
+      opts?: { requirePrevious?: boolean; requireOpenDate?: boolean; scheduledOpenDate?: string },
+    ) =>
       request<{ lesson_item?: unknown }>(
         "course",
         `/classes/${classId}/lessons/${lessonId}/assessments`,
@@ -1272,6 +1361,9 @@ export const api = {
             class_id: Number(classId),
             lesson_id: Number(lessonId),
             assessment_id: Number(assessmentId),
+            ...(opts?.requirePrevious !== undefined ? { require_previous: opts.requirePrevious } : {}),
+            ...(opts?.requireOpenDate !== undefined ? { require_open_date: opts.requireOpenDate } : {}),
+            ...(opts?.scheduledOpenDate ? { scheduled_open_date: opts.scheduledOpenDate } : {}),
           }),
         },
       ).then((response) => normalizeLessonItem(response.lesson_item)),
@@ -1581,6 +1673,132 @@ export const api = {
         { method: "DELETE" },
       ),
   },
+  // ── Student-facing endpoints ──────────────────────────────────────────────
+
+  student: {
+    // Classes enrolled by the current student (via ListClasses, role-aware)
+    classes: () =>
+      request<{ classes?: unknown[] }>("course", "/classes").then((r) => ({
+        classes: (r.classes ?? []).map(normalizeClassOffering),
+      })),
+
+    // Continue learning for a specific class
+    continueLearning: (classId: string) =>
+      request<unknown>("course", `/classes/${classId}/continue`),
+
+    // Upcoming lesson items across all active classes (next 7 days)
+    upcomingWeek: () =>
+      request<{ items?: unknown[] }>("course", "/classes/upcoming-week").then(
+        (r) => r.items ?? [],
+      ),
+
+    // Assessment status for a specific lesson item
+    assessmentStatus: (
+      classId: string,
+      lessonItemId: string,
+      studentId: string,
+    ) =>
+      request<{
+        status: string;
+        submission_id?: number;
+        score?: number;
+        passed?: boolean;
+      }>(
+        "assessment",
+        `/assessment-classes/${classId}/lesson-items/${lessonItemId}/students/${studentId}/status`,
+      ),
+
+    // List submissions by student ID
+    submissions: (studentId: string) =>
+      request<{ submissions?: unknown[] }>(
+        "assessment",
+        `/assessment-students/${studentId}/submissions`,
+      ).then((r) => r.submissions ?? []),
+  },
+
+  submissions: {
+    // Start a new submission (student begins a quiz)
+    start: (body: { assessment_id: number; lesson_item_id: number; class_id: number }) =>
+      request<{ id: number; status: string }>("assessment", "/submissions", {
+        method: "POST",
+        ...jsonBody(body),
+      }),
+
+    get: (id: string) =>
+      request<{
+        id: number;
+        assessment_id: number;
+        lesson_item_id: number;
+        class_id: number;
+        student_id: number;
+        status: string;
+        started_at?: string;
+        submitted_at?: string;
+        time_limit_seconds?: number;
+      }>("assessment", `/submissions/${id}`),
+
+    // Submit the submission (finish the quiz)
+    submit: (id: string) =>
+      request<{ id: number; status: string; submitted_at: string }>(
+        "assessment",
+        `/submissions/${id}/submit`,
+        { method: "POST" },
+      ),
+
+    // Get graded result for a submission
+    result: (id: string) =>
+      request<{
+        submission_id: number;
+        points_earned: number;
+        points_total: number;
+        score_percent: number;
+        correct_count: number;
+        question_count: number;
+        graded_at: string;
+      }>("assessment", `/submissions/${id}/result`),
+
+    // Get questions for this submission (shuffled per options)
+    questions: (id: string) =>
+      request<{ questions?: unknown[] }>("assessment", `/submissions/${id}/questions`).then(
+        (r) => r.questions ?? [],
+      ),
+
+    // Get options for a specific question in this submission
+    questionOptions: (submissionId: string, questionId: string) =>
+      request<{ options?: unknown[] }>(
+        "assessment",
+        `/submissions/${submissionId}/questions/${questionId}/options`,
+      ).then((r) => r.options ?? []),
+
+    // Select a single option (clears previous selection for single-choice)
+    selectOption: (id: string, body: { question_id: number; option_id: number }) =>
+      request<{ success: boolean }>("assessment", `/submissions/${id}/select-option`, {
+        method: "POST",
+        ...jsonBody(body),
+      }),
+
+    // Deselect a specific option
+    deselectOption: (id: string, body: { question_id: number; option_id: number }) =>
+      request<{ success: boolean }>("assessment", `/submissions/${id}/deselect-option`, {
+        method: "POST",
+        ...jsonBody(body),
+      }),
+
+    // Clear all selections for a question
+    clearOptions: (id: string, questionId: number) =>
+      request<{ success: boolean }>("assessment", `/submissions/${id}/clear-options`, {
+        method: "POST",
+        ...jsonBody({ question_id: questionId }),
+      }),
+
+    // Get currently selected options
+    selectedOptions: (id: string) =>
+      request<{ selected_options?: unknown[] }>(
+        "assessment",
+        `/submissions/${id}/selected-options`,
+      ).then((r) => r.selected_options ?? []),
+  },
+
   platformConfig: {
     get: () =>
       request<{ config: PlatformConfig }>("user", "/config", {}, false).then(

@@ -33,9 +33,10 @@ import { courseLabel } from "@/features/courses/course-utils";
 import { AssignLecturerModal } from "@/features/classes/assign-lecturer-modal";
 import { Modal } from "@/components/ui/modal";
 import { LecturerClassDetailPage } from "@/features/classes/lecturer-class-detail-page";
+import { StudentClassDetailPage } from "@/features/student/student-class-detail-page";
 import { useAsync } from "@/features/shared/use-async";
 import { useAuth } from "@/hooks/use-auth";
-import { isLecturer } from "@/lib/auth";
+import { isLecturer, isStudent } from "@/lib/auth";
 import type { LessonItem } from "@/types/course";
 
 type ClassTab =
@@ -45,10 +46,10 @@ type ClassTab =
   | "lecturer-performance";
 
 export function ClassDetailPage({ id }: { id: string }) {
-  const { user } = useAuth();
-  if (isLecturer(user)) {
-    return <LecturerClassDetailPage id={id} />;
-  }
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingState label="Loading..." />;
+  if (isStudent(user)) return <StudentClassDetailPage classId={id} />;
+  if (isLecturer(user)) return <LecturerClassDetailPage id={id} />;
   return <DirectorClassDetailPage id={id} />;
 }
 
