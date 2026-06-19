@@ -1,4 +1,4 @@
-import { StudentLessonViewerPage } from "@/features/student/student-lesson-viewer-page";
+﻿import { StudentLessonViewerPage } from "@/app/features/student/student-lesson-viewer-page";
 
 export default async function Page({
   params,

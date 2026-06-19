@@ -1,4 +1,4 @@
-import { StudentQuizStartPage } from "@/features/student/student-quiz-start-page";
+﻿import { StudentQuizStartPage } from "@/app/features/student/student-quiz-start-page";
 
 export default async function Page({
   params,

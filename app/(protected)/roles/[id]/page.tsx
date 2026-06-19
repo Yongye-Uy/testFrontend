@@ -1,4 +1,4 @@
-import { RoleDetailPage } from "@/features/roles/role-detail-page";
+﻿import { RoleDetailPage } from "@/app/features/roles/role-detail-page";
 
 export default async function Page({
   params,

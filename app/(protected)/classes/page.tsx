@@ -1,4 +1,4 @@
-import { LecturerClassesPage } from "@/features/classes/lecturer-classes-page";
+﻿import { LecturerClassesPage } from "@/app/features/classes/lecturer-classes-page";
 
 export default function Page() {
   return <LecturerClassesPage />;

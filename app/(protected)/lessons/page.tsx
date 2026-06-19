@@ -1,4 +1,4 @@
-import { PlaceholderPage } from "@/features/shared/placeholder-page";
+﻿import { PlaceholderPage } from "@/app/features/shared/placeholder-page";
 
 export default function Page() {
   return (

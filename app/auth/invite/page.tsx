@@ -1,5 +1,5 @@
-import { Suspense } from "react";
-import { InviteCompletionForm } from "@/features/auth/invite-completion-form";
+﻿import { Suspense } from "react";
+import { InviteCompletionForm } from "@/app/features/auth/invite-completion-form";
 
 export default function InvitationPage() {
   return (
