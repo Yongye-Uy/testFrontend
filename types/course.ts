@@ -27,10 +27,16 @@ export type Semester = {
 export type ClassOffering = {
   id: string;
   semester_id: string;
+  semester_title?: string;
+  semester_status?: string;
   course_id: string;
+  course_title?: string;
+  course_code?: string;
   lecturer_id: string | null;
+  lecturer_name?: string;
   status: "active" | string;
   created_by: string;
+  enrollment_count?: number;
 };
 
 export type LessonItem = {
@@ -46,6 +52,9 @@ export type LessonItem = {
   time_limit_seconds: number | null;
   description: string;
   link_url: string | null;
+  view_url: string | null;
+  progress_status?: string;
+  require_previous?: boolean;
 };
 
 export type ClassLesson = {

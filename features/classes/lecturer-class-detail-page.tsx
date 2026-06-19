@@ -1108,6 +1108,14 @@ function ReuseLessonsModal({
   );
 }
 
+const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB
+
+function mimeToMaterialType(mime: string): string {
+  if (mime === "application/pdf") return "pdf";
+  if (mime.startsWith("video/")) return "video";
+  return "document";
+}
+
 function AddMaterialModal({
   classId,
   code,
@@ -1121,58 +1129,97 @@ function AddMaterialModal({
   onClose: () => void;
   onDone: () => Promise<void>;
 }) {
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    linkUrl: "",
-  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [form, setForm] = useState({ title: "", description: "", linkUrl: "" });
   const [source, setSource] = useState<"upload" | "link">("link");
-  const [file, setFile] = useState<File | null>(null);
+  const [pickedFile, setPickedFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [setOpenDate, setSetOpenDate] = useState(false);
   const [openDateValue, setOpenDateValue] = useState("");
   const [unlockRule, setUnlockRule] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  function reset() {
+    setForm({ title: "", description: "", linkUrl: "" });
+    setSource("link");
+    setPickedFile(null);
+    setUploadProgress(null);
+    setSetOpenDate(false);
+    setOpenDateValue("");
+    setUnlockRule(false);
+    setError("");
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    if (!file) return;
+    if (file.size > MAX_FILE_BYTES) {
+      setError("File exceeds 50 MB limit.");
+      return;
+    }
+    setError("");
+    setPickedFile(file);
+    // pre-fill title from file name if title is empty
+    if (!form.title.trim()) {
+      setForm((f) => ({ ...f, title: file.name.replace(/\.[^.]+$/, "") }));
+    }
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    if (file.size > MAX_FILE_BYTES) { setError("File exceeds 50 MB limit."); return; }
+    setError("");
+    setPickedFile(file);
+    if (!form.title.trim()) setForm((f) => ({ ...f, title: file.name.replace(/\.[^.]+$/, "") }));
+  }
+
+  async function uploadToR2(file: File): Promise<{ objectKey: string; fileName: string; mimeType: string }> {
+    const { upload_url, object_key } = await api.lessons.getUploadUrl(
+      classId,
+      file.name,
+      file.type || "application/octet-stream",
+    );
+
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", upload_url);
+      xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+      xhr.upload.onprogress = (ev) => {
+        if (ev.lengthComputable) setUploadProgress(Math.round((ev.loaded / ev.total) * 100));
+      };
+      xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed: ${xhr.status}`)));
+      xhr.onerror = () => reject(new Error("Upload network error"));
+      xhr.send(file);
+    });
+
+    return { objectKey: object_key, fileName: file.name, mimeType: file.type || "application/octet-stream" };
+  }
+
   async function submit() {
     if (!lessonId) return;
-    if (!form.title.trim()) {
-      setError("Material title is required.");
-      return;
-    }
-    if (source === "upload" && !file) {
-      setError("Choose a file to upload.");
-      return;
-    }
-    if (source === "upload" && file && file.size > 50 * 1024 * 1024) {
-      setError("File is larger than the 50 MB limit.");
-      return;
-    }
-    if (source === "link" && !form.linkUrl.trim()) {
-      setError("Link URL is required.");
-      return;
-    }
+    if (!form.title.trim()) { setError("Material title is required."); return; }
+    if (source === "upload" && !pickedFile) { setError("Please pick a file to upload."); return; }
+    if (source === "link" && !form.linkUrl.trim()) { setError("Please enter a URL."); return; }
+
     setLoading(true);
     setError("");
     try {
-      if (source === "upload" && file) {
-        // 1) presign  2) upload bytes to storage  3) attach to the lesson
-        const contentType = file.type || "application/octet-stream";
-        const { uploadUrl, objectKey } = await api.lessons.getMaterialUploadURL(
-          classId,
-          file.name,
-          contentType,
-        );
-        await api.lessons.uploadMaterialFile(uploadUrl, file);
+      const unlockFields = {
+        ...(unlockRule ? { requirePrevious: true } : {}),
+        ...(openDateValue ? { requireOpenDate: true, scheduledOpenDate: new Date(openDateValue).toISOString() } : {}),
+      };
+      if (source === "upload" && pickedFile) {
+        setUploadProgress(0);
+        const { objectKey, fileName, mimeType } = await uploadToR2(pickedFile);
         await api.lessons.addMaterial(classId, lessonId, {
           title: form.title.trim(),
           description: form.description.trim(),
-          type: "document",
-          file: {
-            object_key: objectKey,
-            file_name: file.name,
-            mime_type: contentType,
-          },
+          type: mimeToMaterialType(mimeType),
+          file: { fileObjectKey: objectKey, fileName, mimeType },
+          ...unlockFields,
         });
       } else {
         await api.lessons.addMaterial(classId, lessonId, {
@@ -1180,33 +1227,37 @@ function AddMaterialModal({
           description: form.description.trim(),
           type: "link",
           linkUrl: form.linkUrl.trim(),
+          ...unlockFields,
         });
       }
-      setForm({ title: "", description: "", linkUrl: "" });
-      setFile(null);
-      setSource("link");
+      reset();
       await onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Add material failed");
+      setUploadProgress(null);
     } finally {
       setLoading(false);
     }
   }
 
+  const canSave = source === "link"
+    ? !!form.title.trim() && !!form.linkUrl.trim()
+    : !!form.title.trim() && !!pickedFile;
+
   return (
     <Modal
       open={lessonId !== null}
-      onClose={onClose}
+      onClose={() => { reset(); onClose(); }}
       title="Create material"
-      description="Add a reading, PDF, or external link to this class."
+      description="Add a reading, PDF, video, or external link to this class."
       eyebrow={`${code} · New material`}
       footer={
         <>
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <Button type="button" variant="secondary" onClick={() => { reset(); onClose(); }}>
             Cancel
           </Button>
-          <Button variant="gold" loading={loading} onClick={submit}>
-            {loading && source === "upload" ? "Uploading…" : "Save material"}
+          <Button variant="gold" loading={loading} disabled={!canSave} onClick={submit}>
+            Save material
           </Button>
         </>
       }
@@ -1216,9 +1267,7 @@ function AddMaterialModal({
           <input
             className={inputClass}
             value={form.title}
-            onChange={(event) =>
-              setForm({ ...form, title: event.target.value })
-            }
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
             placeholder="e.g. Variables & Data Types"
             required
           />
@@ -1227,13 +1276,12 @@ function AddMaterialModal({
           <textarea
             className={textareaClass}
             value={form.description}
-            onChange={(event) =>
-              setForm({ ...form, description: event.target.value })
-            }
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
             placeholder="Brief learning objective for this material..."
           />
         </Field>
 
+        {/* Source toggle */}
         <div>
           <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-500">
             Source
@@ -1243,9 +1291,7 @@ function AddMaterialModal({
               type="button"
               onClick={() => setSource("upload")}
               className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
-                source === "upload"
-                  ? "bg-navy-800 text-cream-50"
-                  : "text-ink-600 hover:bg-cream-100"
+                source === "upload" ? "bg-navy-800 text-cream-50" : "text-ink-600 hover:bg-cream-100"
               }`}
             >
               <CloudUploadOutlinedIcon sx={{ fontSize: 16 }} /> Upload file
@@ -1254,9 +1300,7 @@ function AddMaterialModal({
               type="button"
               onClick={() => setSource("link")}
               className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
-                source === "link"
-                  ? "bg-navy-800 text-cream-50"
-                  : "text-ink-600 hover:bg-cream-100"
+                source === "link" ? "bg-navy-800 text-cream-50" : "text-ink-600 hover:bg-cream-100"
               }`}
             >
               <LinkRoundedIcon sx={{ fontSize: 16 }} /> Add link
@@ -1264,47 +1308,65 @@ function AddMaterialModal({
           </div>
 
           {source === "upload" ? (
-            <label className="mt-3 block cursor-pointer rounded-xl border-2 border-dashed border-ink-200 bg-cream-50/60 px-6 py-10 text-center transition hover:border-navy-300">
-              <input
-                type="file"
-                className="hidden"
-                accept=".pdf,.doc,.docx,.txt"
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-              />
-              <CloudUploadOutlinedIcon
-                sx={{ fontSize: 28 }}
-                className="text-ink-400"
-              />
-              {file ? (
-                <>
-                  <p className="mt-2 font-semibold text-navy-900">
-                    {file.name}
-                  </p>
-                  <p className="mt-1 text-xs text-ink-500">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB · click to choose
-                    a different file
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="mt-2 font-semibold text-navy-900">
-                    Drop file or click to upload
-                  </p>
-                  <p className="mt-1 text-xs text-ink-500">
-                    PDF, DOCX, DOC, or TXT · max 50 MB
-                  </p>
-                </>
+            <div className="mt-3">
+              {/* Drop zone */}
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`cursor-pointer rounded-xl border-2 border-dashed px-6 py-8 text-center transition ${
+                  pickedFile
+                    ? "border-emerald-300 bg-emerald-50"
+                    : "border-ink-200 bg-cream-50/60 hover:border-navy-300 hover:bg-cream-100"
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.txt,.mp4,.webm"
+                  onChange={handleFileChange}
+                />
+                {pickedFile ? (
+                  <>
+                    <PictureAsPdfOutlinedIcon sx={{ fontSize: 28 }} className="text-emerald-500" />
+                    <p className="mt-2 font-semibold text-navy-900">{pickedFile.name}</p>
+                    <p className="mt-1 text-xs text-ink-500">
+                      {(pickedFile.size / 1024 / 1024).toFixed(1)} MB · click to change
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <CloudUploadOutlinedIcon sx={{ fontSize: 28 }} className="text-ink-400" />
+                    <p className="mt-2 font-semibold text-navy-900">Drop file or click to upload</p>
+                    <p className="mt-1 text-xs text-ink-500">PDF, DOCX, DOC, TXT, MP4 · max 50 MB</p>
+                  </>
+                )}
+              </div>
+
+              {/* Upload progress bar */}
+              {uploadProgress !== null && (
+                <div className="mt-3">
+                  <div className="mb-1 flex items-center justify-between text-xs text-ink-600">
+                    <span>Uploading…</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-100">
+                    <div
+                      className="h-full rounded-full bg-gold-500 transition-all"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
               )}
-            </label>
+            </div>
           ) : (
             <div className="mt-3">
               <Field label="Link URL">
                 <input
                   className={inputClass}
                   value={form.linkUrl}
-                  onChange={(event) =>
-                    setForm({ ...form, linkUrl: event.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, linkUrl: e.target.value })}
                   placeholder="https://..."
                   type="url"
                 />
@@ -1313,29 +1375,27 @@ function AddMaterialModal({
           )}
         </div>
 
+        {/* Unlock rules */}
         <div className="space-y-3 border-t border-ink-100 pt-4">
           <label className="flex cursor-pointer items-start gap-3">
             <input
               type="checkbox"
               className="mt-1"
               checked={setOpenDate}
-              onChange={(event) => setSetOpenDate(event.target.checked)}
+              onChange={(e) => setSetOpenDate(e.target.checked)}
             />
             <span>
-              <span className="text-sm font-semibold text-navy-900">
-                Set open date
-              </span>
+              <span className="text-sm font-semibold text-navy-900">Set open date</span>
               {setOpenDate ? (
                 <input
                   type="date"
                   className={`${inputClass} mt-2`}
                   value={openDateValue}
-                  onChange={(event) => setOpenDateValue(event.target.value)}
+                  onChange={(e) => setOpenDateValue(e.target.value)}
                 />
               ) : (
                 <span className="mt-0.5 block text-xs text-ink-500">
-                  No scheduled open date. Availability is governed by the unlock
-                  rule below and the draft or publish state.
+                  No scheduled open date — availability governed by unlock rule below.
                 </span>
               )}
             </span>
@@ -1346,24 +1406,15 @@ function AddMaterialModal({
               type="checkbox"
               className="mt-1"
               checked={unlockRule}
-              onChange={(event) => setUnlockRule(event.target.checked)}
+              onChange={(e) => setUnlockRule(e.target.checked)}
             />
             <span>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-ink-500">
-                Unlock rule
-              </span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-ink-500">Unlock rule</span>
               <span className="mt-0.5 block text-sm text-navy-900">
-                Require students to complete the previous material or assessment
-                before this one unlocks
+                Require students to complete the previous item before this one unlocks
               </span>
             </span>
           </label>
-
-          <p className="text-xs text-gold-700">
-            Scheduling and unlock-rule enforcement aren&apos;t wired to the
-            backend yet — these are saved with the item once those fields are
-            exposed.
-          </p>
         </div>
 
         {error && <ErrorState message={error} />}
@@ -1387,6 +1438,9 @@ function AddAssessmentModal({
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [unlockRule, setUnlockRule] = useState(false);
+  const [setOpenDate, setSetOpenDate] = useState(false);
+  const [openDateValue, setOpenDateValue] = useState("");
   const assessments = useAsync(
     () =>
       lessonId !== null
@@ -1411,8 +1465,14 @@ function AddAssessmentModal({
     setError("");
     try {
       if (!selectedId) throw new Error("Select an assessment first.");
-      await api.lessons.addAssessment(classId, lessonId, selectedId);
+      await api.lessons.addAssessment(classId, lessonId, selectedId, {
+        ...(unlockRule ? { requirePrevious: true } : {}),
+        ...(setOpenDate && openDateValue ? { requireOpenDate: true, scheduledOpenDate: new Date(openDateValue).toISOString() } : {}),
+      });
       setSelectedId("");
+      setUnlockRule(false);
+      setSetOpenDate(false);
+      setOpenDateValue("");
       await onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Add assessment failed");
@@ -1480,19 +1540,39 @@ function AddAssessmentModal({
             ))}
           </div>
         )}
+        <div className="space-y-2 rounded-xl border border-ink-100 bg-cream-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">Unlock rules</p>
+          <label className="flex items-center gap-2 text-sm text-ink-700">
+            <input
+              type="checkbox"
+              checked={unlockRule}
+              onChange={(e) => setUnlockRule(e.target.checked)}
+            />
+            Require previous item to be completed
+          </label>
+          <label className="flex items-center gap-2 text-sm text-ink-700">
+            <input
+              type="checkbox"
+              checked={setOpenDate}
+              onChange={(e) => { setSetOpenDate(e.target.checked); if (!e.target.checked) setOpenDateValue(""); }}
+            />
+            Schedule open date
+          </label>
+          {setOpenDate && (
+            <input
+              type="datetime-local"
+              className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm"
+              value={openDateValue}
+              onChange={(e) => setOpenDateValue(e.target.value)}
+            />
+          )}
+        </div>
         {error && <ErrorState message={error} />}
         <div className="flex items-center justify-between gap-2">
           <Button type="button" variant="ghost" onClick={buildNew}>
             <AddRoundedIcon sx={{ fontSize: 16 }} /> Build new assessment
           </Button>
-          <div className="flex gap-2">
-            <Button type="button" variant="secondary" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button loading={loading} disabled={!selectedId}>
-              Add assessment
-            </Button>
-          </div>
+          <Button disabled={!selectedId} loading={loading}>Add assessment</Button>
         </div>
       </form>
     </Modal>

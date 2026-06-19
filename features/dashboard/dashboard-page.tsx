@@ -17,9 +17,10 @@ import { useAsync } from "@/features/shared/use-async";
 import { useLecturerClasses } from "@/features/classes/use-lecturer-classes";
 import { LecturerClassCard } from "@/features/classes/lecturer-class-card";
 import { useAuth } from "@/hooks/use-auth";
-import { isDirector, isLecturer, isSuperAdmin } from "@/lib/auth";
+import { isDirector, isLecturer, isStudent, isSuperAdmin } from "@/lib/auth";
 import { api } from "@/lib/api-client";
 import { backendCapabilities } from "@/lib/backend-capabilities";
+import { StudentDashboard } from "@/features/student/student-dashboard";
 
 function greeting() {
   const hour = new Date().getHours();
@@ -150,6 +151,10 @@ export function DashboardPage() {
         )}
       </>
     );
+  }
+
+  if (isStudent(user)) {
+    return <StudentDashboard user={user as any} />;
   }
 
   if (isLecturer(user)) {
