@@ -1,4 +1,4 @@
-import { AssessmentBuilderPage } from "@/features/assessments/assessment-builder-page";
+﻿import { AssessmentBuilderPage } from "@/app/features/assessments/assessment-builder-page";
 
 export default async function Page({
   searchParams,

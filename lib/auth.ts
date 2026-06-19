@@ -1,4 +1,4 @@
-import type { User } from "@/types/user";
+﻿import type { User } from "@/app/types/user";
 
 const ACCESS_TOKEN_KEY = "epplms.access_token";
 const REFRESH_TOKEN_KEY = "epplms.refresh_token";

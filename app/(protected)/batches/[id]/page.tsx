@@ -1,4 +1,4 @@
-import { BatchDetailPage } from "@/features/batches/batch-detail-page";
+﻿import { BatchDetailPage } from "@/app/features/batches/batch-detail-page";
 
 export default async function Page({
   params,

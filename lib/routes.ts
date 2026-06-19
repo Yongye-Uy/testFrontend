@@ -14,6 +14,7 @@ export const routes = {
   semesterClasses: (semesterId: string) => `/my-classes/semester/${semesterId}`,
   classDetail: (classId: string) => `/my-classes/${classId}`,
   grades: "/grades",
+  gradesSemester: (semesterId: string) => `/grades/${semesterId}`,
   lessonViewer: (classId: string, lessonItemId: string) =>
     `/my-classes/${classId}/lesson/${lessonItemId}`,
   quiz: (classId: string, lessonItemId: string) =>

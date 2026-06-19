@@ -1,5 +1,5 @@
-import { Suspense } from "react";
-import { OauthCallback } from "@/features/auth/oauth-callback";
+﻿import { Suspense } from "react";
+import { OauthCallback } from "@/app/features/auth/oauth-callback";
 
 export default function AuthCallbackPage() {
   return (
