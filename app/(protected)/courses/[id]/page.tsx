@@ -1,4 +1,4 @@
-import { CourseDetailPage } from "@/features/courses/course-detail-page";
+﻿import { CourseDetailPage } from "@/app/features/courses/course-detail-page";
 
 export default async function Page({
   params,

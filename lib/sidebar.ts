@@ -1,4 +1,4 @@
-import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
+﻿import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
@@ -11,8 +11,10 @@ import RouterOutlinedIcon from "@mui/icons-material/RouterOutlined";
 import StorageOutlinedIcon from "@mui/icons-material/StorageOutlined";
 import BarChartOutlinedIcon from "@mui/icons-material/BarChartOutlined";
 import type { SvgIconComponent } from "@mui/icons-material";
-import type { User } from "@/types/user";
-import { isDirector, isLecturer, isSuperAdmin } from "./auth";
+import type { User } from "@/app/types/user";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import GradeOutlinedIcon from "@mui/icons-material/GradeOutlined";
+import { isDirector, isLecturer, isSuperAdmin, isStudent } from "./auth";
 
 export type SidebarItem = {
   label: string;
@@ -55,7 +57,7 @@ const ALL_SIDEBAR_ITEMS: SidebarItem[] = [
     label: "Batches",
     href: "/batches",
     icon: GroupsOutlinedIcon,
-    permission: "batch.read",
+    permission: "batch.create",
   },
   // System Admin section
   {
@@ -129,6 +131,26 @@ export function sidebarForUser(user: User | null): SidebarItem[] {
         label: "My Classes",
         href: "/classes",
         icon: MenuBookOutlinedIcon,
+      },
+    ];
+  }
+
+  if (isStudent(user)) {
+    return [
+      {
+        label: "Dashboard",
+        href: "/dashboard",
+        icon: DashboardOutlinedIcon,
+      },
+      {
+        label: "My Classes",
+        href: "/my-classes",
+        icon: AssignmentOutlinedIcon,
+      },
+      {
+        label: "Grades",
+        href: "/grades",
+        icon: GradeOutlinedIcon,
       },
     ];
   }

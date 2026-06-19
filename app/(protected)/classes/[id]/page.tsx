@@ -1,4 +1,4 @@
-import { ClassDetailPage } from "@/features/classes/class-detail-page";
+﻿import { ClassDetailPage } from "@/app/features/classes/class-detail-page";
 
 export default async function Page({
   params,

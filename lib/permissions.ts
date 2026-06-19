@@ -1,4 +1,4 @@
-import type { User } from "@/types/user";
+﻿import type { User } from "@/app/types/user";
 import { isDirector, isSuperAdmin } from "./auth";
 
 export function canManageUsers(user: User | null) {

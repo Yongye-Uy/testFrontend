@@ -1,4 +1,4 @@
-import { SemesterDetailPage } from "@/features/semesters/semester-detail-page";
+﻿import { SemesterDetailPage } from "@/app/features/semesters/semester-detail-page";
 
 export default async function Page({
   params,

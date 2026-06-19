@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import KeyboardDoubleArrowLeftRoundedIcon from "@mui/icons-material/KeyboardDoubleArrowLeftRounded";
@@ -11,18 +11,18 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { UserAvatar } from "@/components/ui/user-avatar";
-import { useAuth, AuthProvider } from "@/hooks/use-auth";
-import { useSidebar } from "@/hooks/use-sidebar";
-import { usePlatformConfig } from "@/hooks/use-platform-config";
-import { isDirector, isSuperAdmin } from "@/lib/auth";
-import { api } from "@/lib/api-client";
+import { useAuth, AuthProvider } from "@/app/hooks/use-auth";
+import { useSidebar } from "@/app/hooks/use-sidebar";
+import { usePlatformConfig } from "@/app/hooks/use-platform-config";
+import { isDirector, isLecturer, isStudent, isSuperAdmin } from "@/lib/auth";
+import { api } from "@/app/services/api-client";
 import {
   sidebarForPermissions,
   sidebarForUser,
   type SidebarItem,
 } from "@/lib/sidebar";
 import { PermissionsContext } from "@/contexts/permissions-context";
-import type { User } from "@/types/user";
+import type { User } from "@/app/types/user";
 
 function LayoutInner({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
@@ -31,6 +31,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const director = isDirector(user);
+  const student = isStudent(user);
 
   const [userPermissions, setUserPermissions] = useState<string[] | null>(null);
 
@@ -53,11 +54,16 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
     },
   };
 
-  // Use permission-based items once loaded; role-based fallback avoids flash.
-  const items =
-    userPermissions !== null && !isSuperAdmin(user)
-      ? sidebarForPermissions(userPermissions)
-      : sidebarForUser(user);
+  // Student and lecturer sidebar items are role-based, not permission-based.
+  // Only director and super_admin use the permission-filtered list.
+  const usePermissionSidebar =
+    userPermissions !== null &&
+    !isSuperAdmin(user) &&
+    !isLecturer(user) &&
+    !isStudent(user);
+  const items = usePermissionSidebar
+    ? sidebarForPermissions(userPermissions!)
+    : sidebarForUser(user);
   const groups = director ? directorGroups(items) : [{ label: "", items }];
 
   useEffect(() => {
@@ -123,7 +129,9 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
                 ? "Super Admin"
                 : director
                   ? "Director Portal"
-                  : "Portal"}
+                  : student
+                    ? "Student Portal"
+                    : "Portal"}
             </p>
           </div>
         )}

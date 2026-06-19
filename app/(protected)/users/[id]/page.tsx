@@ -1,4 +1,4 @@
-import { UserDetailPage } from "@/features/users/user-detail-page";
+﻿import { UserDetailPage } from "@/app/features/users/user-detail-page";
 
 export default async function Page({
   params,

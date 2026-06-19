@@ -1,4 +1,4 @@
-import { RolesPage } from "@/features/roles/roles-page";
+﻿import { RolesPage } from "@/app/features/roles/roles-page";
 
 export default function Page() {
   return <RolesPage />;
