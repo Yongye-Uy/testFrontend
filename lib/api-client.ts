@@ -683,7 +683,7 @@ export interface ObservabilityLogsParams {
   query?: string;
   limit?: number;
   start: number; // nanoseconds
-  end: number;   // nanoseconds
+  end: number; // nanoseconds
 }
 
 export interface LokiStreamValue {
@@ -1812,26 +1812,33 @@ export const api = {
   },
   integrations: {
     get: () =>
-      request<{ integrations: IntegrationsConfig }>("user", "/integrations").then(
-        (r) => r.integrations,
-      ),
+      request<{ integrations: IntegrationsConfig }>(
+        "user",
+        "/integrations",
+      ).then((r) => r.integrations),
     update: (integrations: IntegrationsConfig) =>
       request<{ integrations: IntegrationsConfig }>("user", "/integrations", {
         method: "PUT",
         ...jsonBody({ integrations }),
       }).then((r) => r.integrations),
     test: (service: IntegrationService) =>
-      request<{ success: boolean; message: string }>("user", "/integrations/test", {
-        method: "POST",
-        ...jsonBody({ service }),
-      }),
+      request<{ success: boolean; message: string }>(
+        "user",
+        "/integrations/test",
+        {
+          method: "POST",
+          ...jsonBody({ service }),
+        },
+      ),
   },
 
   storage: {
-    stats: () =>
-      request<StorageStatsResponse>("course", "/storage/stats"),
+    stats: () => request<StorageStatsResponse>("course", "/storage/stats"),
     files: (page: number, pageSize = 20) =>
-      request<StorageFilesResponse>("course", `/storage/files?page=${page}&page_size=${pageSize}`),
+      request<StorageFilesResponse>(
+        "course",
+        `/storage/files?page=${page}&page_size=${pageSize}`,
+      ),
   },
 
   observability: {
@@ -1864,10 +1871,19 @@ export const api = {
       });
       const auth = { Authorization: `Bearer ${getAccessToken()}` };
       return Promise.all([
-        fetch(`/api/observability/logs/query?${errorQs}`, { headers: auth }).then((r) => r.json()),
-        fetch(`/api/observability/logs/query?${warnQs}`, { headers: auth }).then((r) => r.json()),
-        fetch(`/api/observability/logs/query?${totalQs}`, { headers: auth }).then((r) => r.json()),
-        fetch(`/api/observability/metrics/query?query=histogram_quantile(0.95%2C+sum(rate(http_request_duration_seconds_bucket%5B5m%5D))+by+(le))`, { headers: auth }).then((r) => r.json()),
+        fetch(`/api/observability/logs/query?${errorQs}`, {
+          headers: auth,
+        }).then((r) => r.json()),
+        fetch(`/api/observability/logs/query?${warnQs}`, {
+          headers: auth,
+        }).then((r) => r.json()),
+        fetch(`/api/observability/logs/query?${totalQs}`, {
+          headers: auth,
+        }).then((r) => r.json()),
+        fetch(
+          `/api/observability/metrics/query?query=histogram_quantile(0.95%2C+sum(rate(http_request_duration_seconds_bucket%5B5m%5D))+by+(le))`,
+          { headers: auth },
+        ).then((r) => r.json()),
       ]);
     },
   },

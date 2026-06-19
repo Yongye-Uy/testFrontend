@@ -13,9 +13,10 @@ import { api } from "@/lib/api-client";
 import { useAsync } from "@/features/shared/use-async";
 import { useAuth } from "@/hooks/use-auth";
 import { isLecturer, isSuperAdmin } from "@/lib/auth";
-import { AssessmentModal } from "./assessments-page";
+import { AssessmentModal } from "./assessment-modal";
 import { AssessmentSettingsCard } from "./assessment-settings-card";
 import { QuestionsPanel } from "./question-list";
+import { StudentPreviewModal } from "./student-preview";
 import { SubmissionsSection } from "./submissions-section";
 
 type DetailTab = "questions" | "settings" | "submissions";
@@ -25,6 +26,7 @@ export function AssessmentDetailPage({ id }: { id: string }) {
   const { user } = useAuth();
   const canManage = isLecturer(user) || isSuperAdmin(user);
   const [editOpen, setEditOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<DetailTab>("questions");
   const [actionError, setActionError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
@@ -67,7 +69,7 @@ export function AssessmentDetailPage({ id }: { id: string }) {
     setActionError("");
     try {
       await api.assessments.remove(id);
-      router.push("/assessments");
+      router.push("/classes");
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Delete failed");
       setActionLoading(false);
@@ -76,19 +78,22 @@ export function AssessmentDetailPage({ id }: { id: string }) {
 
   return (
     <>
-      <BackLink href="/assessments" label="Assessments" />
+      <BackLink href="/classes" label="My Classes" />
       <PageHeader
         title={assessment.data?.title ?? "Assessment detail"}
         description="Manage settings, author questions, and review student submissions."
         breadcrumbs={[
           { label: "Home" },
-          { label: "Assessments", href: "/assessments" },
+          { label: "Assessments" },
           { label: assessment.data?.title ?? "Assessment detail" },
         ]}
         actions={
           assessment.data &&
           canManage && (
             <>
+              <Button variant="outline" onClick={() => setPreviewOpen(true)}>
+                Preview as student
+              </Button>
               <Button variant="secondary" onClick={() => setEditOpen(true)}>
                 Edit
               </Button>
@@ -176,6 +181,14 @@ export function AssessmentDetailPage({ id }: { id: string }) {
           onClose={() => setEditOpen(false)}
           onDone={assessment.reload}
           initial={assessment.data}
+        />
+      )}
+      {assessment.data && (
+        <StudentPreviewModal
+          open={previewOpen}
+          onClose={() => setPreviewOpen(false)}
+          assessmentId={id}
+          title={assessment.data.title}
         />
       )}
     </>

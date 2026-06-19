@@ -1434,6 +1434,7 @@ function AddAssessmentModal({
   onClose: () => void;
   onDone: () => Promise<void>;
 }) {
+  const router = useRouter();
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -1447,6 +1448,15 @@ function AddAssessmentModal({
         : Promise.resolve({ assessments: [] }),
     [lessonId],
   );
+
+  function buildNew() {
+    if (!lessonId) return;
+    router.push(
+      `/assessments/new?classId=${encodeURIComponent(
+        classId,
+      )}&lessonId=${encodeURIComponent(lessonId)}`,
+    );
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -1484,10 +1494,19 @@ function AddAssessmentModal({
         {assessments.error && <ErrorState message={assessments.error} />}
         {!assessments.loading &&
           (assessments.data?.assessments.length ?? 0) === 0 && (
-            <p className="rounded-xl bg-cream-100 px-4 py-6 text-center text-sm text-ink-600">
-              You haven&apos;t authored any assessments yet. Create one from the
-              Assessments page first.
-            </p>
+            <div className="rounded-xl bg-cream-100 px-4 py-6 text-center">
+              <p className="text-sm text-ink-600">
+                You haven&apos;t authored any assessments yet.
+              </p>
+              <Button
+                type="button"
+                variant="gold"
+                className="mt-3"
+                onClick={buildNew}
+              >
+                Build new assessment
+              </Button>
+            </div>
           )}
         {(assessments.data?.assessments.length ?? 0) > 0 && (
           <div className="max-h-[320px] space-y-2 overflow-y-auto rounded-xl border border-ink-100 bg-white p-3">
@@ -1549,9 +1568,9 @@ function AddAssessmentModal({
           )}
         </div>
         {error && <ErrorState message={error} />}
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
+        <div className="flex items-center justify-between gap-2">
+          <Button type="button" variant="ghost" onClick={buildNew}>
+            <AddRoundedIcon sx={{ fontSize: 16 }} /> Build new assessment
           </Button>
           <Button disabled={!selectedId} loading={loading}>Add assessment</Button>
         </div>
