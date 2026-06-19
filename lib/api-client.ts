@@ -564,6 +564,7 @@ function normalizeLessonItem(raw: unknown): LessonItem {
       return null;
     })(),
     progress_status: typeof value.progress_status === "string" ? value.progress_status : undefined,
+    require_previous: typeof value.require_previous === "boolean" ? value.require_previous : undefined,
   };
 }
 
@@ -1246,6 +1247,34 @@ export const api = {
       ).then((response) => ({
         lessons: (response.lessons ?? []).map(normalizeLesson),
       })),
+    listForStudentClass: async (classId: string) => {
+      const response = await request<{ lessons?: unknown[] }>(
+        "course",
+        `/classes/${classId}/lessons`,
+      );
+      let lessons = (response.lessons ?? []).map(normalizeLesson);
+
+      lessons = lessons.filter((l) => l.item_count > 0);
+
+      lessons = await Promise.all(
+        lessons.map(async (lesson) => {
+          try {
+            const detail = await request<{ items?: unknown[] }>(
+              "course",
+              `/classes/${classId}/lessons/${lesson.id}`
+            );
+            // Wait, does backend return published items only for students?
+            // Actually the backend might return everything for GetLesson, but we only have is_unlocked.
+            // We just map it.
+            lesson.items = (detail.items ?? []).map(normalizeLessonItem);
+            return lesson;
+          } catch (e) {
+            return lesson;
+          }
+        })
+      );
+      return { lessons };
+    },
     create: (classId: string, title: string) =>
       request<{ lesson?: unknown }>("course", `/classes/${classId}/lessons`, {
         method: "POST",
@@ -1270,6 +1299,16 @@ export const api = {
           }),
         },
       ).then((response) => normalizeLesson(response.lesson)),
+    getUploadUrl: (classId: string, fileName: string, contentType: string) =>
+      request<{ upload_url: string; object_key: string }>(
+        "course",
+        `/classes/${classId}/materials/upload-url`,
+        {
+          method: "POST",
+          ...jsonBody({ class_id: Number(classId), file_name: fileName, content_type: contentType }),
+        },
+      ),
+
     addMaterial: (
       classId: string,
       lessonId: string,
@@ -1278,6 +1317,10 @@ export const api = {
         description?: string;
         type: string;
         linkUrl?: string;
+        file?: { fileObjectKey: string; fileName: string; mimeType: string };
+        requirePrevious?: boolean;
+        requireOpenDate?: boolean;
+        scheduledOpenDate?: string; // RFC3339
       },
     ) =>
       request<{ lesson_item?: unknown }>(
@@ -1294,10 +1337,21 @@ export const api = {
             ...(body.type === "link" && body.linkUrl
               ? { link: { external_url: body.linkUrl, link_title: body.title } }
               : {}),
+            ...(body.file
+              ? { file: { file_object_key: body.file.fileObjectKey, file_name: body.file.fileName, mime_type: body.file.mimeType } }
+              : {}),
+            ...(body.requirePrevious !== undefined ? { require_previous: body.requirePrevious } : {}),
+            ...(body.requireOpenDate !== undefined ? { require_open_date: body.requireOpenDate } : {}),
+            ...(body.scheduledOpenDate ? { scheduled_open_date: body.scheduledOpenDate } : {}),
           }),
         },
       ).then((response) => normalizeLessonItem(response.lesson_item)),
-    addAssessment: (classId: string, lessonId: string, assessmentId: string) =>
+    addAssessment: (
+      classId: string,
+      lessonId: string,
+      assessmentId: string,
+      opts?: { requirePrevious?: boolean; requireOpenDate?: boolean; scheduledOpenDate?: string },
+    ) =>
       request<{ lesson_item?: unknown }>(
         "course",
         `/classes/${classId}/lessons/${lessonId}/assessments`,
@@ -1307,6 +1361,9 @@ export const api = {
             class_id: Number(classId),
             lesson_id: Number(lessonId),
             assessment_id: Number(assessmentId),
+            ...(opts?.requirePrevious !== undefined ? { require_previous: opts.requirePrevious } : {}),
+            ...(opts?.requireOpenDate !== undefined ? { require_open_date: opts.requireOpenDate } : {}),
+            ...(opts?.scheduledOpenDate ? { scheduled_open_date: opts.scheduledOpenDate } : {}),
           }),
         },
       ).then((response) => normalizeLessonItem(response.lesson_item)),
@@ -1671,6 +1728,9 @@ export const api = {
       request<{
         id: number;
         assessment_id: number;
+        lesson_item_id: number;
+        class_id: number;
+        student_id: number;
         status: string;
         started_at?: string;
         submitted_at?: string;
@@ -1684,6 +1744,18 @@ export const api = {
         `/submissions/${id}/submit`,
         { method: "POST" },
       ),
+
+    // Get graded result for a submission
+    result: (id: string) =>
+      request<{
+        submission_id: number;
+        points_earned: number;
+        points_total: number;
+        score_percent: number;
+        correct_count: number;
+        question_count: number;
+        graded_at: string;
+      }>("assessment", `/submissions/${id}/result`),
 
     // Get questions for this submission (shuffled per options)
     questions: (id: string) =>

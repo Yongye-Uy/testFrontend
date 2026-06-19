@@ -93,7 +93,7 @@ export function defaultRouteForUser() {
   return "/dashboard";
 }
 
-export function isSuperAdmin(user: User | null) {
+export function isSuperAdmin(user: User | null): boolean {
   if (!user) return false;
   return (
     user.is_super_admin ||
@@ -102,17 +102,17 @@ export function isSuperAdmin(user: User | null) {
   );
 }
 
-export function isDirector(user: User | null) {
+export function isDirector(user: User | null): boolean {
   if (!user) return false;
   return user.role === "director" || user.roles.includes("director");
 }
 
-export function isLecturer(user: User | null) {
+export function isLecturer(user: User | null): boolean {
   if (!user) return false;
   return user.role === "lecturer" || user.roles.includes("lecturer");
 }
 
-export function isStudent(user: User | null) {
+export function isStudent(user: User | null): boolean {
   if (!user) return false;
   return user.role === "student" || user.roles.includes("student");
 }

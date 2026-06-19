@@ -67,7 +67,7 @@ export function StudentLessonViewerPage({
 
   const classData = useAsync(() => api.classes.get(classId), [classId]);
   const lessonsData = useAsync(
-    () => api.lessons.listForClass(classId).then((r) => r.lessons),
+    () => api.lessons.listForStudentClass(classId).then((r) => r.lessons),
     [classId],
   );
 
@@ -82,11 +82,11 @@ export function StudentLessonViewerPage({
   const nextItem =
     currentIndex < allItems.length - 1 ? allItems[currentIndex + 1] : null;
 
-  // Mark as in_progress on mount
+  // Mark as completed on mount
   useEffect(() => {
     if (!currentItem?.is_unlocked || !user?.id) return;
     api.classes
-      .progress(classId, lessonItemId, "in_progress")
+      .progress(classId, lessonItemId, "completed")
       .catch(() => null);
   }, [classId, lessonItemId, user?.id, currentItem?.is_unlocked]);
 

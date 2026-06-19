@@ -3,10 +3,13 @@
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import CancelRoundedIcon from "@mui/icons-material/CancelRounded";
 import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
+import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
 import { routes } from "@/lib/routes";
+import { useAuth } from "@/hooks/use-auth";
 import { ProgressRing } from "./progress-ring";
 
 type QuestionRow = {
@@ -32,8 +35,6 @@ type QuestionResult = {
   options: OptionRow[];
   selectedIds: Set<string>;
   isCorrect: boolean;
-  points: number;
-  maxPoints: number;
 };
 
 export function StudentQuizResultPage({
@@ -43,27 +44,42 @@ export function StudentQuizResultPage({
   classId: string;
   submissionId: string;
 }) {
+  const { user } = useAuth();
+  const router = useRouter();
+
   const [results, setResults] = useState<QuestionResult[] | null>(null);
   const [loading, setLoading] = useState(true);
-  const [submissionMeta, setSubmissionMeta] = useState<{
-    started_at?: string;
-    submitted_at?: string;
-    pass_threshold?: number;
-  }>({});
+  const [scorePercent, setScorePercent] = useState<number | null>(null);
+  const [passThreshold, setPassThreshold] = useState<number>(70);
+  const [requirePrevious, setRequirePrevious] = useState<boolean | null>(null);
+  const [lessonItemId, setLessonItemId] = useState<string>("");
+  const [retaking, setRetaking] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
-        const sub = await api.submissions.get(submissionId);
-        setSubmissionMeta({
-          started_at: sub.started_at,
-          submitted_at: sub.submitted_at,
-          pass_threshold: undefined,
-        });
+        const [subRaw, resultData] = await Promise.all([
+          api.submissions.get(submissionId),
+          api.submissions.result(submissionId).catch(() => null),
+        ]);
 
-        const questions = (await api.submissions.questions(
-          submissionId,
-        )) as QuestionRow[];
+        const liId = String(subRaw.lesson_item_id ?? "");
+        setLessonItemId(liId);
+
+        const lessonsRaw = await api.lessons.listForStudentClass(classId).then((r) => r.lessons).catch(() => []);
+        // find require_previous for this lesson item
+        const allItems = lessonsRaw.flatMap((l: { items: { id: string; require_previous?: boolean; pass_threshold_percent?: number | null }[] }) => l.items);
+        const currentItem = allItems.find((i: { id: string }) => i.id === liId);
+        setRequirePrevious(currentItem?.require_previous ?? false);
+        if (currentItem?.pass_threshold_percent) {
+          setPassThreshold(currentItem.pass_threshold_percent);
+        }
+
+        if (resultData) {
+          setScorePercent(resultData.score_percent);
+        }
+
+        const questions = (await api.submissions.questions(submissionId)) as QuestionRow[];
 
         const [selectedRaw, ...optionsPerQ] = await Promise.all([
           api.submissions.selectedOptions(submissionId),
@@ -82,15 +98,7 @@ export function StudentQuizResultPage({
         const qResults: QuestionResult[] = questions.map((q, idx) => {
           const opts = optionsPerQ[idx] as OptionRow[];
           const selIds = selectedByQ[q.id] ?? new Set();
-          const correctIds = new Set(
-            opts.filter((o) => o.is_correct).map((o) => o.id),
-          );
-          const isCorrect =
-            selIds.size === correctIds.size &&
-            [...selIds].every((id) => correctIds.has(id));
-          const maxPoints = 10;
-          const points = isCorrect ? maxPoints : 0;
-          return { question: q, options: opts, selectedIds: selIds, isCorrect, points, maxPoints };
+          return { question: q, options: opts, selectedIds: selIds, isCorrect: false };
         });
 
         setResults(qResults);
@@ -99,7 +107,27 @@ export function StudentQuizResultPage({
       }
     }
     void load();
-  }, [submissionId]);
+  }, [submissionId, classId, lessonItemId]);
+
+  async function handleRetake() {
+    if (!user) return;
+    setRetaking(true);
+    try {
+      const lessonsRaw = await api.lessons.listForStudentClass(classId).then((r) => r.lessons);
+      const allItems = lessonsRaw.flatMap((l: { items: { id: string; item_id: string }[] }) => l.items);
+      const currentItem = allItems.find((i: { id: string }) => i.id === lessonItemId);
+      if (!currentItem) return;
+
+      const sub = await api.submissions.start({
+        assessment_id: Number(currentItem.item_id),
+        lesson_item_id: Number(lessonItemId),
+        class_id: Number(classId),
+      });
+      router.push(routes.quizTake(classId, lessonItemId) + `?sid=${sub.id}`);
+    } catch {
+      setRetaking(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -113,19 +141,10 @@ export function StudentQuizResultPage({
     return <p className="text-sm text-red-600">Could not load quiz results.</p>;
   }
 
-  const totalQ = results.length;
-  const correct = results.filter((r) => r.isCorrect).length;
-  const incorrect = totalQ - correct;
-  const percent = totalQ > 0 ? Math.round((correct / totalQ) * 100) : 0;
-  const passThreshold = 70;
+  const percent = scorePercent ?? 0;
   const passed = percent >= passThreshold;
-
-  const timeUsedMs =
-    submissionMeta.started_at && submissionMeta.submitted_at
-      ? new Date(submissionMeta.submitted_at).getTime() -
-        new Date(submissionMeta.started_at).getTime()
-      : null;
-  const timeUsedMin = timeUsedMs ? Math.ceil(timeUsedMs / 60000) : null;
+  // require_previous=true → retake until pass; false → one-attempt only
+  const canRetake = requirePrevious === true && !passed;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -145,43 +164,27 @@ export function StudentQuizResultPage({
               You scored {percent}% on this quiz.{" "}
               {passed
                 ? "You've passed this quiz — the next lesson is now unlocked."
-                : `You need ${passThreshold}% to pass. Review the material and try again.`}
+                : canRetake
+                  ? `You need ${passThreshold}% to pass. Review the material and try again.`
+                  : `You need ${passThreshold}% to pass. This was a one-attempt quiz.`}
             </p>
           </div>
-          <ProgressRing
-            percent={percent}
-            size={88}
-            stroke={7}
-          />
+          <ProgressRing percent={percent} size={88} stroke={7} />
         </div>
 
         <div className="flex flex-wrap gap-6 bg-white/10 px-8 py-4 text-white">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">
-              Correct
-            </p>
-            <p className="text-[1.4rem] font-bold">
-              {correct} / {totalQ}
-            </p>
+            <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">Score</p>
+            <p className="text-[1.4rem] font-bold">{percent}%</p>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">
-              Incorrect
-            </p>
-            <p className="text-[1.4rem] font-bold">{incorrect}</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">
-              Passing score
-            </p>
+            <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">Passing score</p>
             <p className="text-[1.4rem] font-bold">{passThreshold}%</p>
           </div>
-          {timeUsedMin && (
+          {requirePrevious === false && (
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">
-                Time used
-              </p>
-              <p className="text-[1.4rem] font-bold">{timeUsedMin} min</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">Attempts</p>
+              <p className="text-[1.4rem] font-bold">1 / 1</p>
             </div>
           )}
         </div>
@@ -201,19 +204,23 @@ export function StudentQuizResultPage({
         <div className="space-y-4">
           {results.map((r, idx) => {
             const selectedOpts = r.options.filter((o) => r.selectedIds.has(o.id));
+            const correctIds = new Set(r.options.filter((o) => o.is_correct).map((o) => o.id));
+            const selSet = r.selectedIds;
+            const isCorrect =
+              selSet.size === correctIds.size && [...selSet].every((id) => correctIds.has(id));
             const feedback = r.options.find((o) => o.feedback && o.is_correct)?.feedback;
 
             return (
               <div
                 key={r.question.id}
                 className={`rounded-2xl border p-5 ${
-                  r.isCorrect
+                  isCorrect
                     ? "border-emerald-200 bg-emerald-50"
                     : "border-rose-200 bg-rose-50"
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  {r.isCorrect ? (
+                  {isCorrect ? (
                     <CheckCircleRoundedIcon
                       style={{ fontSize: 20 }}
                       className="mt-0.5 shrink-0 text-emerald-600"
@@ -225,18 +232,9 @@ export function StudentQuizResultPage({
                     />
                   )}
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-ink-500">
-                        Question {idx + 1}
-                      </span>
-                      <span
-                        className={`text-[10px] font-bold ${
-                          r.isCorrect ? "text-emerald-700" : "text-rose-700"
-                        }`}
-                      >
-                        {r.isCorrect ? `+${r.points} pts` : `0 of ${r.maxPoints} pts`}
-                      </span>
-                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-ink-500">
+                      Question {idx + 1}
+                    </span>
                     <p className="mt-1.5 font-medium text-navy-900">
                       {r.question.question_text}
                     </p>
@@ -274,7 +272,7 @@ export function StudentQuizResultPage({
                       </div>
                     )}
 
-                    {!r.isCorrect && feedback && (
+                    {!isCorrect && feedback && (
                       <div className="mt-3 flex items-start gap-2 rounded-lg border border-gold-200 bg-gold-50 px-3 py-2.5">
                         <LightbulbOutlinedIcon
                           style={{ fontSize: 15 }}
@@ -305,6 +303,21 @@ export function StudentQuizResultPage({
         >
           View all grades
         </Link>
+        {canRetake && (
+          <button
+            onClick={handleRetake}
+            disabled={retaking}
+            className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-navy-950 shadow-sm transition hover:bg-gold-400 disabled:opacity-50"
+          >
+            <ReplayRoundedIcon style={{ fontSize: 16 }} />
+            {retaking ? "Starting…" : "Retake quiz"}
+          </button>
+        )}
+        {requirePrevious === false && !passed && (
+          <span className="inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-ink-50 px-4 py-2.5 text-sm font-semibold text-ink-400">
+            Cannot retake — one attempt only
+          </span>
+        )}
       </div>
     </div>
   );

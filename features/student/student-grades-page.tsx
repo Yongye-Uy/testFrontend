@@ -199,7 +199,7 @@ export function StudentGradesPage() {
 
               // Get assessment title from lessons
               const lessons = await api.lessons
-                .listForClass(cls.id)
+                .listForStudentClass(cls.id)
                 .then((r) => r.lessons);
               const item = lessons
                 .flatMap((l) => l.items)

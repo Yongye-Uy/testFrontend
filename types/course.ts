@@ -54,6 +54,7 @@ export type LessonItem = {
   link_url: string | null;
   view_url: string | null;
   progress_status?: string;
+  require_previous?: boolean;
 };
 
 export type ClassLesson = {

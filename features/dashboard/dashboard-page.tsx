@@ -154,7 +154,7 @@ export function DashboardPage() {
   }
 
   if (isStudent(user)) {
-    return <StudentDashboard user={user} />;
+    return <StudentDashboard user={user as any} />;
   }
 
   if (isLecturer(user)) {

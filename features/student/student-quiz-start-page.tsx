@@ -2,6 +2,7 @@
 
 import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
 import CheckCircleOutlineRoundedIcon from "@mui/icons-material/CheckCircleOutlineRounded";
 import GradingOutlinedIcon from "@mui/icons-material/GradingOutlined";
 import Link from "next/link";
@@ -10,7 +11,6 @@ import { useState } from "react";
 import { useAsync } from "@/features/shared/use-async";
 import { api } from "@/lib/api-client";
 import { routes } from "@/lib/routes";
-import type { Assessment } from "@/types/assessment";
 import { useAuth } from "@/hooks/use-auth";
 
 const RULES = [
@@ -35,7 +35,7 @@ export function StudentQuizStartPage({
 
   const classData = useAsync(() => api.classes.get(classId), [classId]);
   const lessonsData = useAsync(
-    () => api.lessons.listForClass(classId).then((r) => r.lessons),
+    () => api.lessons.listForStudentClass(classId).then((r) => r.lessons),
     [classId],
   );
 
@@ -43,7 +43,22 @@ export function StudentQuizStartPage({
     ?.flatMap((l) => l.items)
     .find((i) => i.id === lessonItemId);
 
+  const assessmentStatusData = useAsync(
+    () =>
+      user
+        ? api.student.assessmentStatus(classId, lessonItemId, String(user.id))
+        : Promise.resolve(null),
+    [classId, lessonItemId, user?.id],
+  );
+
   const cls = classData.data;
+  const assessmentStatus = assessmentStatusData.data;
+
+  // require_previous=false → one attempt only; block if already submitted
+  const isOneAttempt = currentItem?.require_previous === false;
+  const alreadySubmitted =
+    assessmentStatus?.status === "completed" || assessmentStatus?.status === "graded";
+  const blocked = isOneAttempt && alreadySubmitted;
 
   async function handleBegin() {
     if (!currentItem || !user) return;
@@ -92,6 +107,11 @@ export function StudentQuizStartPage({
           <span className="rounded-full bg-gold-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gold-400">
             Assessment
           </span>
+          {isOneAttempt && (
+            <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-300">
+              One attempt only
+            </span>
+          )}
         </div>
         <h1 className="mt-3 font-serif-display text-[1.5rem] font-semibold leading-8">
           {currentItem?.title ?? "Quiz"}
@@ -142,40 +162,63 @@ export function StudentQuizStartPage({
         </div>
       </div>
 
-      {/* Rules */}
-      <div className="mb-8 rounded-2xl border border-ink-200 bg-white p-6">
-        <h2 className="mb-4 font-serif-display text-[1rem] font-semibold text-navy-900">
-          Rules &amp; guidance
-        </h2>
-        <ul className="space-y-3">
-          {RULES.map((rule) => (
-            <li key={rule} className="flex items-start gap-3 text-sm text-ink-700">
-              <CheckCircleOutlineRoundedIcon
-                style={{ fontSize: 18 }}
-                className="mt-0.5 shrink-0 text-emerald-500"
-              />
-              {rule}
-            </li>
-          ))}
-        </ul>
-      </div>
+      {/* Blocked: one-attempt already used */}
+      {blocked ? (
+        <div className="mb-8 rounded-2xl border border-ink-200 bg-ink-50 p-6">
+          <div className="flex items-start gap-3">
+            <BlockOutlinedIcon className="mt-0.5 shrink-0 text-ink-400" style={{ fontSize: 22 }} />
+            <div>
+              <p className="font-semibold text-navy-900">Attempt already submitted</p>
+              <p className="mt-1 text-sm text-ink-600">
+                This quiz allows only one attempt. Your submission has been recorded.
+              </p>
+              <Link
+                href={routes.classDetail(classId)}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-4 py-2.5 text-sm font-semibold text-navy-700 shadow-sm transition hover:bg-cream-100"
+              >
+                Back to class
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Rules */}
+          <div className="mb-8 rounded-2xl border border-ink-200 bg-white p-6">
+            <h2 className="mb-4 font-serif-display text-[1rem] font-semibold text-navy-900">
+              Rules &amp; guidance
+            </h2>
+            <ul className="space-y-3">
+              {RULES.map((rule) => (
+                <li key={rule} className="flex items-start gap-3 text-sm text-ink-700">
+                  <CheckCircleOutlineRoundedIcon
+                    style={{ fontSize: 18 }}
+                    className="mt-0.5 shrink-0 text-emerald-500"
+                  />
+                  {rule}
+                </li>
+              ))}
+            </ul>
+          </div>
 
-      {error && (
-        <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {error}
-        </p>
+          {error && (
+            <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {error}
+            </p>
+          )}
+
+          <button
+            onClick={handleBegin}
+            disabled={starting || !currentItem || assessmentStatusData.loading}
+            className="w-full rounded-2xl bg-gold-500 px-6 py-4 text-base font-bold text-navy-950 shadow-sm transition hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {starting ? "Starting…" : "Begin assessment"}
+          </button>
+          <p className="mt-2 text-center text-[11px] text-ink-500">
+            The timer starts the moment you click Begin.
+          </p>
+        </>
       )}
-
-      <button
-        onClick={handleBegin}
-        disabled={starting || !currentItem}
-        className="w-full rounded-2xl bg-gold-500 px-6 py-4 text-base font-bold text-navy-950 shadow-sm transition hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {starting ? "Starting…" : "Begin assessment"}
-      </button>
-      <p className="mt-2 text-center text-[11px] text-ink-500">
-        The timer starts the moment you click Begin.
-      </p>
     </div>
   );
 }

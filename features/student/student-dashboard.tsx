@@ -49,7 +49,7 @@ function ContinueLearningCard({ cls }: { cls: ClassOffering }) {
     [cls.id],
   );
   const lessons = useAsync(
-    () => api.lessons.listForClass(cls.id),
+    () => api.lessons.listForStudentClass(cls.id),
     [cls.id],
   );
 

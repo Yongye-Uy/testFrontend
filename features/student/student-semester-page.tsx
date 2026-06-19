@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { ProgressRing } from "./progress-ring";
 
 function ClassCard({ cls }: { cls: ClassOffering }) {
-  const lessons = useAsync(() => api.lessons.listForClass(cls.id), [cls.id]);
+  const lessons = useAsync(() => api.lessons.listForStudentClass(cls.id), [cls.id]);
   const continueLearning = useAsync(
     () => api.student.continueLearning(cls.id),
     [cls.id],

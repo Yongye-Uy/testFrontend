@@ -57,8 +57,11 @@ function itemAction(
   if (item.item_type === "assessment") {
     const ps = item.progress_status;
     if (ps === "completed") {
-      return { label: "Review result", href: routes.classDetail(classId) };
+      // require_previous=true → may retake until pass; false → one-attempt done
+      const label = item.require_previous === false ? "View result" : "Retake / View result";
+      return { label, href: routes.quiz(classId, item.id) };
     }
+    if (ps === "in_progress") return { label: "Continue quiz", href: routes.quiz(classId, item.id) };
     return { label: "Begin quiz", href: routes.quiz(classId, item.id) };
   }
 
@@ -94,9 +97,9 @@ function LessonOutlineItem({ classId, item }: { classId: string; item: LessonIte
         <span className="truncate text-sm font-medium text-navy-900">
           {item.title}
         </span>
-        {isAssessment && item.progress_status === "completed" && item.pass_threshold_percent && (
+        {isAssessment && item.progress_status === "completed" && (
           <span className="text-[10px] text-emerald-600">
-            ✓ Passed · Score {item.pass_threshold_percent}%
+            ✓ Submitted
           </span>
         )}
         {!item.is_unlocked && (
@@ -167,7 +170,7 @@ export function StudentClassDetailPage({ classId }: { classId: string }) {
   const lessonsData = useAsync(
     () =>
       api.lessons
-        .listForClass(classId)
+        .listForStudentClass(classId)
         .then((r) => r.lessons),
     [classId],
   );
