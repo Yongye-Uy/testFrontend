@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
@@ -7,6 +7,7 @@ import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 import RadioButtonUncheckedRoundedIcon from "@mui/icons-material/RadioButtonUncheckedRounded";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
 import { useAsync } from "@/app/features/shared/use-async";
@@ -15,6 +16,11 @@ import { routes } from "@/lib/routes";
 import type { LessonItem } from "@/app/types/course";
 import { useAuth } from "@/app/hooks/use-auth";
 import { AngkorMotif } from "@/components/branding/AngkorMotif";
+
+const PdfCanvasViewer = dynamic(
+  () => import("./pdf-canvas-viewer").then((m) => m.PdfCanvasViewer),
+  { ssr: false },
+);
 
 function OutlineItem({
   item,
@@ -85,9 +91,7 @@ export function StudentLessonViewerPage({
   // Mark as completed on mount
   useEffect(() => {
     if (!currentItem?.is_unlocked || !user?.id) return;
-    api.classes
-      .progress(classId, lessonItemId, "completed")
-      .catch(() => null);
+    api.classes.progress(classId, lessonItemId, "completed").catch(() => null);
   }, [classId, lessonItemId, user?.id, currentItem?.is_unlocked]);
 
   const cls = classData.data;
@@ -102,7 +106,7 @@ export function StudentLessonViewerPage({
     <div className="flex h-full gap-0">
       {/* Main content */}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        {/* Breadcrumb bar */}
+        {/* Breadcrumb */}
         <div className="border-b border-ink-200 bg-white px-6 py-3">
           <nav className="flex items-center gap-1.5 text-[12px] text-ink-500">
             <Link href={routes.myClasses} className="hover:text-navy-700">
@@ -111,16 +115,13 @@ export function StudentLessonViewerPage({
             <span>/</span>
             {cls?.course_code && (
               <>
-                <Link
-                  href={routes.classDetail(classId)}
-                  className="hover:text-navy-700"
-                >
+                <Link href={routes.classDetail(classId)} className="hover:text-navy-700">
                   {cls.course_code}
                 </Link>
                 <span>/</span>
               </>
             )}
-            <span className="text-navy-800 font-medium">{title}</span>
+            <span className="font-medium text-navy-800">{title}</span>
           </nav>
         </div>
 
@@ -132,60 +133,43 @@ export function StudentLessonViewerPage({
           <h1 className="mt-1 font-serif-display text-[1.35rem] font-semibold text-navy-900">
             {title}
           </h1>
-          {currentItem?.material_type && (
+          {materialType && (
             <span className="mt-1 inline-flex rounded-md bg-ink-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-ink-600 ring-1 ring-ink-200">
               {materialType}
             </span>
           )}
         </div>
 
-        {/* File viewer */}
+        {/* File viewer card */}
         <div className="mx-6 overflow-hidden rounded-xl border border-ink-200 shadow-sm">
           {/* Toolbar */}
-          <div className="flex items-center gap-3 bg-navy-900 px-4 py-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gold-500/20 text-gold-400">
+          <div className="flex items-center gap-3 bg-navy-900 px-4 py-2.5 text-cream-100">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gold-500/20 text-gold-400">
               <PictureAsPdfOutlinedIcon style={{ fontSize: 16 }} />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold text-cream-100">
-                {title}
-              </div>
+              <div className="truncate text-sm font-semibold">{title}</div>
               {cls?.course_code && (
-                <div className="text-[11px] text-cream-300/70">
-                  {cls.course_code}
-                </div>
+                <div className="text-[11px] text-cream-300/70">{cls.course_code}</div>
               )}
             </div>
           </div>
 
-          {/* Download disabled notice */}
+          {/* Downloads disabled notice */}
           <div className="flex items-center gap-2 border-b border-gold-200 bg-gold-50 px-4 py-2 text-xs text-gold-900">
-            <LockOutlinedIcon
-              style={{ fontSize: 14 }}
-              className="shrink-0 text-gold-600"
-            />
-            <strong>Downloads disabled</strong>&nbsp;· This material is for
-            in-platform viewing only. Right-click and printing are restricted.
+            <LockOutlinedIcon style={{ fontSize: 14 }} className="shrink-0 text-gold-700" />
+            <span>
+              <strong>Downloads disabled</strong> · This material is for
+              in-platform viewing only. Right-click and printing are restricted.
+            </span>
           </div>
 
-          {/* Content */}
           {viewUrl ? (
-            <iframe
-              src={viewUrl}
-              title={title}
-              className="h-[70vh] w-full border-0"
-              onContextMenu={blockMenu}
-              sandbox="allow-same-origin allow-scripts"
-            />
+            <PdfCanvasViewer url={viewUrl} />
           ) : linkUrl ? (
             <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
-              <LinkOutlinedIcon
-                style={{ fontSize: 40 }}
-                className="text-ink-300"
-              />
-              <p className="text-sm text-ink-600">
-                This material is an external link.
-              </p>
+              <LinkOutlinedIcon style={{ fontSize: 40 }} className="text-ink-300" />
+              <p className="text-sm text-ink-600">This material is an external link.</p>
               <a
                 href={linkUrl}
                 target="_blank"
@@ -197,14 +181,17 @@ export function StudentLessonViewerPage({
             </div>
           ) : (
             <div
-              className="relative min-h-[60vh] bg-cream-50 px-10 py-12"
+              className="relative min-h-[60vh] select-none bg-cream-50 px-10 py-12"
               onContextMenu={blockMenu}
             >
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
-                <div className="flex -rotate-[25deg] flex-col items-center gap-2 opacity-[0.05]">
+                <div className="flex rotate-[-25deg] flex-col items-center gap-2 opacity-[0.06]">
                   <AngkorMotif size={120} className="text-navy-900" />
                   <span className="font-serif-display text-5xl font-bold tracking-widest text-navy-900">
                     PIU · LMS
+                  </span>
+                  <span className="text-sm tracking-[0.4em] uppercase text-navy-900">
+                    Paragon International University
                   </span>
                 </div>
               </div>
@@ -224,8 +211,8 @@ export function StudentLessonViewerPage({
         </div>
 
         {/* Prev / Next navigation */}
-        <div className="mx-6 mt-5 mb-8 flex items-center justify-between gap-4">
-          {prevItem && prevItem.is_unlocked ? (
+        <div className="mx-6 mb-8 mt-5 flex items-center justify-between gap-4">
+          {prevItem?.is_unlocked ? (
             <Link
               href={
                 prevItem.item_type === "assessment"
@@ -241,7 +228,7 @@ export function StudentLessonViewerPage({
             <div />
           )}
 
-          {nextItem && nextItem.is_unlocked ? (
+          {nextItem?.is_unlocked ? (
             <Link
               href={
                 nextItem.item_type === "assessment"
@@ -271,7 +258,7 @@ export function StudentLessonViewerPage({
             Class outline
           </p>
           <p className="mt-0.5 font-semibold text-navy-900 text-[13px]">
-            {cls?.course_title ?? ""}
+            {lessonsData.data?.find((l) => l.items.some((i) => i.id === lessonItemId))?.title ?? cls?.course_title ?? ""}
           </p>
         </div>
 

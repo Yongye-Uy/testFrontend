@@ -57,7 +57,8 @@ function itemAction(
   if (item.item_type === "assessment") {
     const ps = item.progress_status;
     if (ps === "completed") {
-      return { label: "Review result", href: routes.quiz(classId, item.id) };
+      const label = item.require_previous === false ? "View result" : "Retake / View result";
+      return { label, href: routes.quiz(classId, item.id) };
     }
     if (ps === "in_progress") return { label: "Continue quiz", href: routes.quiz(classId, item.id) };
     return { label: "Begin quiz", href: routes.quiz(classId, item.id) };
@@ -66,15 +67,12 @@ function itemAction(
   const ps = item.progress_status;
   if (ps === "completed") return { label: "Review", href: routes.lessonViewer(classId, item.id) };
   if (ps === "in_progress") return { label: "Resume", href: routes.lessonViewer(classId, item.id) };
-  return { label: "View", href: routes.lessonViewer(classId, item.id) };
+  return { label: "Start", href: routes.lessonViewer(classId, item.id) };
 }
 
 function LessonOutlineItem({ classId, item }: { classId: string; item: LessonItem }) {
   const action = itemAction(classId, item);
   const isAssessment = item.item_type === "assessment";
-  const materialTypeLabel = item.material_type
-    ? item.material_type.charAt(0).toUpperCase() + item.material_type.slice(1)
-    : "";
 
   return (
     <div
@@ -86,23 +84,25 @@ function LessonOutlineItem({ classId, item }: { classId: string; item: LessonIte
       <span className="shrink-0">{itemIcon(item)}</span>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="text-[9px] font-bold uppercase tracking-widest text-ink-400">
-          {isAssessment
-            ? `Assessment${item.question_count ? ` · ${item.question_count} questions` : ""}${item.time_limit_seconds ? ` · ${Math.round(item.time_limit_seconds / 60)} min` : ""}`
-            : `Day ${item.display_order}${materialTypeLabel ? ` · ${materialTypeLabel}` : ""}`}
-        </span>
+        {isAssessment && (
+          <span className="text-[9px] font-bold uppercase tracking-widest text-gold-600">
+            Assessment
+            {item.question_count ? ` · ${item.question_count} questions` : ""}
+            {item.time_limit_seconds
+              ? ` · ${Math.round(item.time_limit_seconds / 60)} min`
+              : ""}
+          </span>
+        )}
         <span className="truncate text-sm font-medium text-navy-900">
           {item.title}
         </span>
         {isAssessment && item.progress_status === "completed" && (
-          <span className="text-[10px] text-emerald-600">✓ Passed</span>
+          <span className="text-[10px] text-emerald-600">
+            ✓ Submitted
+          </span>
         )}
         {!item.is_unlocked && (
-          <span className="text-[10px] text-amber-600">
-            {item.pass_threshold_percent
-              ? `Pass the previous quiz with ${item.pass_threshold_percent}% or higher`
-              : "Complete the previous content to unlock"}
-          </span>
+          <span className="text-[10px] text-ink-400">Complete previous lessons to unlock</span>
         )}
       </div>
 

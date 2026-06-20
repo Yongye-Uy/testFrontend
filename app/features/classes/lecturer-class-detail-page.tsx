@@ -1176,27 +1176,6 @@ function AddMaterialModal({
     if (!form.title.trim()) setForm((f) => ({ ...f, title: file.name.replace(/\.[^.]+$/, "") }));
   }
 
-  async function uploadToR2(file: File): Promise<{ objectKey: string; fileName: string; mimeType: string }> {
-    const { upload_url, object_key } = await api.lessons.getUploadUrl(
-      classId,
-      file.name,
-      file.type || "application/octet-stream",
-    );
-
-    await new Promise<void>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open("PUT", upload_url);
-      xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
-      xhr.upload.onprogress = (ev) => {
-        if (ev.lengthComputable) setUploadProgress(Math.round((ev.loaded / ev.total) * 100));
-      };
-      xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed: ${xhr.status}`)));
-      xhr.onerror = () => reject(new Error("Upload network error"));
-      xhr.send(file);
-    });
-
-    return { objectKey: object_key, fileName: file.name, mimeType: file.type || "application/octet-stream" };
-  }
 
   async function submit() {
     if (!lessonId) return;
@@ -1209,16 +1188,16 @@ function AddMaterialModal({
     try {
       const unlockFields = {
         ...(unlockRule ? { requirePrevious: true } : {}),
-        ...(openDateValue ? { requireOpenDate: true, scheduledOpenDate: new Date(openDateValue).toISOString() } : {}),
+        ...(setOpenDate && openDateValue ? { requireOpenDate: true, scheduledOpenDate: new Date(openDateValue).toISOString() } : {}),
       };
       if (source === "upload" && pickedFile) {
         setUploadProgress(0);
-        const { objectKey, fileName, mimeType } = await uploadToR2(pickedFile);
+        const { object_key, file_name, mime_type } = await api.lessons.uploadFile(pickedFile, setUploadProgress);
         await api.lessons.addMaterial(classId, lessonId, {
           title: form.title.trim(),
           description: form.description.trim(),
-          type: mimeToMaterialType(mimeType),
-          file: { fileObjectKey: objectKey, fileName, mimeType },
+          type: mimeToMaterialType(mime_type),
+          file: { fileObjectKey: object_key, fileName: file_name, mimeType: mime_type },
           ...unlockFields,
         });
       } else {
@@ -1720,10 +1699,19 @@ function WeekCard({
   onDeleteItem: (item: LessonItem) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
-  const materialCount = lesson.items.filter(
+  // Local items state so framer-motion Reorder has a controlled array it can mutate.
+  const [localItems, setLocalItems] = useState(lesson.items);
+  useEffect(() => { setLocalItems(lesson.items); }, [lesson.items]);
+
+  function handleReorder(items: LessonItem[]) {
+    setLocalItems(items);
+    onReorderItems(items);
+  }
+
+  const materialCount = localItems.filter(
     (item) => item.item_type !== "assessment",
   ).length;
-  const assessmentCount = lesson.items.filter(
+  const assessmentCount = localItems.filter(
     (item) => item.item_type === "assessment",
   ).length;
 
@@ -1791,11 +1779,11 @@ function WeekCard({
           ) : (
             <Reorder.Group
               axis="y"
-              values={lesson.items}
-              onReorder={onReorderItems}
+              values={localItems}
+              onReorder={handleReorder}
               className="divide-y divide-ink-100"
             >
-              {lesson.items.map((item) => {
+              {localItems.map((item) => {
                 const isAssessment = item.item_type === "assessment";
                 return (
                   <Reorder.Item

@@ -1300,15 +1300,31 @@ export const api = {
           }),
         },
       ).then((response) => normalizeLesson(response.lesson)),
-    getUploadUrl: (classId: string, fileName: string, contentType: string) =>
-      request<{ upload_url: string; object_key: string }>(
-        "course",
-        `/classes/${classId}/materials/upload-url`,
-        {
-          method: "POST",
-          ...jsonBody({ class_id: Number(classId), file_name: fileName, content_type: contentType }),
-        },
-      ),
+    uploadFile: async (
+      file: File,
+      onProgress?: (pct: number) => void,
+    ): Promise<{ object_key: string; file_name: string; mime_type: string }> => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `/api/upload/file`);
+        const token = getAccessToken();
+        if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        xhr.upload.onprogress = (ev) => {
+          if (ev.lengthComputable && onProgress) onProgress(Math.round((ev.loaded / ev.total) * 100));
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(JSON.parse(xhr.responseText) as { object_key: string; file_name: string; mime_type: string });
+          } else {
+            reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
+          }
+        };
+        xhr.onerror = () => reject(new Error("Upload network error"));
+        xhr.send(formData);
+      });
+    },
 
     addMaterial: (
       classId: string,
