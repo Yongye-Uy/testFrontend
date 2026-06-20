@@ -1755,11 +1755,11 @@ export const api = {
       }>("assessment", `/submissions/${id}`),
 
     // Submit the submission (finish the quiz)
-    submit: (id: string) =>
+    submit: (id: string, timeUsedSeconds: number) =>
       request<{ id: number; status: string; submitted_at: string }>(
         "assessment",
         `/submissions/${id}/submit`,
-        { method: "POST" },
+        { method: "POST", ...jsonBody({ time_used_seconds: timeUsedSeconds }) },
       ),
 
     // Get graded result for a submission

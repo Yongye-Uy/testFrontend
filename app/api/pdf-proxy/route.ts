@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyToken } from "@/lib/pdf-token";
 
-// Server-side proxy so react-pdf can fetch R2 presigned URLs without
-// hitting CORS restrictions (R2 doesn't send Allow-Origin for localhost).
+const ALLOWED_HOSTS = [
+  ".r2.cloudflarestorage.com",
+  ".r2.dev",
+  ".cloudflare.com",
+];
+
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url");
-  if (!url) {
-    return new NextResponse("Missing url param", { status: 400 });
-  }
+  // Token travels as a request header only — never in the URL, so it cannot be copied
+  // from the address bar or network tab URL column and reused in a new tab.
+  const token = req.headers.get("x-pdf-token");
+
+  if (!url) return new NextResponse("Missing url param", { status: 400 });
+  if (!token) return new NextResponse("Missing token", { status: 401 });
 
   let target: URL;
   try {
@@ -15,27 +23,36 @@ export async function GET(req: NextRequest) {
     return new NextResponse("Invalid url param", { status: 400 });
   }
 
-  // Only proxy to R2 / Cloudflare endpoints — never act as an open proxy.
-  const allowedHosts = [
-    ".r2.cloudflarestorage.com",
-    ".r2.dev",
-    ".cloudflare.com",
-  ];
-  if (!allowedHosts.some((h) => target.hostname.endsWith(h))) {
+  if (!ALLOWED_HOSTS.some((h) => target.hostname.endsWith(h))) {
     return new NextResponse("Forbidden host", { status: 403 });
   }
 
-  const upstream = await fetch(url, { cache: "no-store" });
+  const valid = await verifyToken(url, token);
+  if (!valid) {
+    return new NextResponse("Invalid or expired token", { status: 403 });
+  }
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(url, { cache: "no-store" });
+  } catch {
+    return new NextResponse("Failed to fetch document", { status: 502 });
+  }
   if (!upstream.ok) {
     return new NextResponse("Upstream error", { status: upstream.status });
   }
 
-  const contentType = upstream.headers.get("content-type") ?? "application/pdf";
   return new NextResponse(upstream.body, {
     status: 200,
     headers: {
-      "Content-Type": contentType,
-      "Cache-Control": "private, max-age=3600",
+      "Content-Type": "application/pdf",
+      // Force inline display — never attachment/download
+      "Content-Disposition": "inline",
+      // Block embedding in other origins
+      "X-Frame-Options": "SAMEORIGIN",
+      "Content-Security-Policy": "frame-ancestors 'self'",
+      // No caching of the proxied bytes
+      "Cache-Control": "no-store",
       "X-Content-Type-Options": "nosniff",
     },
   });

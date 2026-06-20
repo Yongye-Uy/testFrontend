@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { BackLink } from "@/components/shared/back-link";
-import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -100,16 +99,19 @@ export function AssessmentBuilderPage({
 
   async function persist(): Promise<string> {
     const options = toOptionsInput(form);
+    // Fall back to a placeholder title so the backend never receives an empty string.
+    const title = form.title.trim() || "Untitled Assessment";
+    if (!form.title.trim()) setForm((f) => ({ ...f, title }));
     let id = assessmentId;
     if (id) {
       await api.assessments.update(id, {
-        title: form.title,
+        title,
         description: form.description,
       });
       await api.assessments.updateOptions(id, options);
     } else {
       const created = await api.assessments.create({
-        title: form.title,
+        title,
         description: form.description,
         options,
       });
@@ -388,19 +390,12 @@ export function AssessmentBuilderPage({
       </Card>
 
       {/* Questions */}
-      {assessmentId ? (
-        <QuestionsPanel
-          assessmentId={assessmentId}
-          onCountChange={handleCount}
-        />
-      ) : (
-        <Card className="p-6">
-          <EmptyState
-            title="Save a draft to add questions"
-            description="Enter a title and click “Save draft”. Once the assessment exists you can author single-choice, multi-answer, true/false, and fill-in-the-blank questions with per-answer feedback."
-          />
-        </Card>
-      )}
+      <QuestionsPanel
+        assessmentId={assessmentId}
+        onCountChange={handleCount}
+        onNeedsSave={persist}
+        onAssessmentCreated={(id) => { setAssessmentId(id); setStatus("draft"); }}
+      />
 
       {assessmentId && (
         <StudentPreviewModal

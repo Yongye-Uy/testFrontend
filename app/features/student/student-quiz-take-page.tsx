@@ -57,6 +57,7 @@ export function StudentQuizTakePage({
   const [submitting, setSubmitting] = useState(false);
   const [confirmSubmit, setConfirmSubmit] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startedAtRef = useRef<number>(Date.now());
 
   // Load submission data
   useEffect(() => {
@@ -169,7 +170,8 @@ export function StudentQuizTakePage({
       setSubmitting(true);
       if (timerRef.current) clearInterval(timerRef.current);
       try {
-        await api.submissions.submit(submissionId);
+        const timeUsed = Math.floor((Date.now() - startedAtRef.current) / 1000);
+        await api.submissions.submit(submissionId, timeUsed);
         router.replace(routes.quizResult(classId, submissionId));
       } catch {
         setSubmitting(false);

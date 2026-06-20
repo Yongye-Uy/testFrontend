@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -14,12 +14,19 @@ import { QuestionEditor } from "./question-editor";
 export function QuestionsPanel({
   assessmentId,
   onCountChange,
+  onNeedsSave,
+  onAssessmentCreated,
 }: {
-  assessmentId: string;
+  assessmentId: string | null;
   onCountChange?: (count: number) => void;
+  onNeedsSave?: () => Promise<string>;
+  onAssessmentCreated?: (id: string) => void;
 }) {
   const questions = useAsync(
-    () => api.assessments.questions(assessmentId),
+    () =>
+      assessmentId
+        ? api.assessments.questions(assessmentId)
+        : Promise.resolve({ questions: [] }),
     [assessmentId],
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -43,11 +50,22 @@ export function QuestionsPanel({
     setAdding(true);
     setError("");
     try {
+      // Auto-save the assessment header if it hasn't been persisted yet.
+      let resolvedId: string;
+      if (assessmentId) {
+        resolvedId = assessmentId;
+      } else if (onNeedsSave) {
+        resolvedId = await onNeedsSave();
+        onAssessmentCreated?.(resolvedId);
+      } else {
+        setError("Save the assessment first.");
+        return;
+      }
       const question = await api.questions.create({
         question_text: "New question",
         type: "mcq_single",
       });
-      await api.assessments.addQuestion(assessmentId, question.id);
+      await api.assessments.addQuestion(resolvedId, question.id);
       await questions.reload();
       setSelectedId(question.id);
     } catch (err) {
@@ -79,7 +97,7 @@ export function QuestionsPanel({
             <ErrorState message={questions.error || error} />
           </div>
         )}
-        <div className="max-h-[520px] divide-y divide-ink-100 overflow-y-auto">
+        <div className="max-h-130 divide-y divide-ink-100 overflow-y-auto">
           {rows.map((question, index) => (
             <button
               key={question.id}
@@ -120,9 +138,9 @@ export function QuestionsPanel({
         {rows.length === 0 ? (
           <EmptyState
             title="No questions yet"
-            description="Add your first question to start building this assessment."
+            description='Click "+ Add question" to start building this assessment.'
           />
-        ) : selectedId ? (
+        ) : selectedId && assessmentId ? (
           <QuestionEditor
             assessmentId={assessmentId}
             questionId={selectedId}
