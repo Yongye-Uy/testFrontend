@@ -145,7 +145,7 @@ export function sidebarForUser(user: User | null): SidebarItem[] {
       {
         label: "My Classes",
         href: "/my-classes",
-        icon: AssignmentOutlinedIcon,
+        icon: MenuBookOutlinedIcon,
       },
       {
         label: "Grades",

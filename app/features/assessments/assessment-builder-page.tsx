@@ -26,6 +26,7 @@ type BuilderForm = {
   title: string;
   description: string;
   timeLimitMin: number;
+  requirePassThreshold: boolean;
   passingScore: number;
   questionsPerAttempt: number;
   shuffleQuestions: boolean;
@@ -40,6 +41,7 @@ const EMPTY_FORM: BuilderForm = {
   title: "",
   description: "",
   timeLimitMin: 0,
+  requirePassThreshold: false,
   passingScore: 70,
   questionsPerAttempt: 0,
   shuffleQuestions: false,
@@ -51,8 +53,8 @@ const EMPTY_FORM: BuilderForm = {
 
 function toOptionsInput(form: BuilderForm): AssessmentOptionsInput {
   return {
-    require_pass_threshold: form.passingScore > 0,
-    pass_threshold_percent: form.passingScore > 0 ? form.passingScore : 70,
+    require_pass_threshold: form.requirePassThreshold,
+    pass_threshold_percent: form.requirePassThreshold ? form.passingScore : 0,
     require_time_limit: form.timeLimitMin > 0,
     time_limit_seconds: Math.max(0, Math.round(form.timeLimitMin * 60)),
     random_questions_count: Math.max(0, form.questionsPerAttempt),
@@ -200,7 +202,7 @@ export function AssessmentBuilderPage({
               loading={savingDraft}
               onClick={saveDraft}
             >
-              Save draft
+              Save as draft
             </Button>
             <Button
               variant="gold"
@@ -269,18 +271,31 @@ export function AssessmentBuilderPage({
             </div>
           </Field>
 
-          <Field label="Passing score" hint="Percent. 0 = no pass threshold.">
-            <div className="flex items-center gap-2">
+          <Field label="Passing threshold">
+            <label className="flex items-center gap-2 text-sm text-navy-900">
               <input
-                type="number"
-                min={0}
-                max={100}
-                className={inputClass}
-                value={form.passingScore}
-                onChange={(e) => set("passingScore", Number(e.target.value))}
+                type="checkbox"
+                checked={form.requirePassThreshold}
+                onChange={(e) => {
+                  set("requirePassThreshold", e.target.checked);
+                  if (!e.target.checked) set("passingScore", 70);
+                }}
               />
-              <span className="text-xs font-medium text-ink-500">%</span>
-            </div>
+              Require minimum passing score
+            </label>
+            {form.requirePassThreshold && (
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  className={inputClass}
+                  value={form.passingScore}
+                  onChange={(e) => set("passingScore", Math.max(1, Number(e.target.value)))}
+                />
+                <span className="text-xs font-medium text-ink-500">%</span>
+              </div>
+            )}
           </Field>
 
           <Field label="Questions per attempt" hint="0 = serve all questions.">

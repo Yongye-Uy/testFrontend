@@ -13,6 +13,8 @@ export type LecturerClass = {
   status: string;
   studentCount: number;
   batchLabel: string | null;
+  lessonsPublished: number;
+  totalLessons: number;
 };
 
 export type LecturerOverview = {
@@ -49,7 +51,7 @@ async function loadLecturerOverview(
 
   const classes = await Promise.all(
     myClasses.map(async (item): Promise<LecturerClass> => {
-      const [studentCount, batchLabel] = await Promise.all([
+      const [studentCount, batchLabel, lessonsRes] = await Promise.all([
         api.classes
           .enrollments(item.id)
           .then((res) => res.enrollments.length)
@@ -58,8 +60,14 @@ async function loadLecturerOverview(
           .batches(item.id)
           .then((res) => res.batches[0]?.name ?? null)
           .catch(() => null),
+        api.lessons
+          .listForClass(item.id)
+          .catch(() => ({ lessons: [] as import("@/app/types/course").ClassLesson[] })),
       ]);
       const course = courseById.get(item.course_id);
+      const lessons = lessonsRes.lessons;
+      // A lesson is "published" when at least one item has been unlocked.
+      const lessonsPublished = lessons.filter((l) => l.unlocked_item_count > 0).length;
       return {
         id: item.id,
         code: course?.code ?? `Class ${item.id}`,
@@ -67,6 +75,8 @@ async function loadLecturerOverview(
         status: item.status,
         studentCount,
         batchLabel,
+        lessonsPublished,
+        totalLessons: lessons.length,
       };
     }),
   );

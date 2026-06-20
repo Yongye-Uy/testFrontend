@@ -5,6 +5,7 @@ import AutoStoriesOutlinedIcon from "@mui/icons-material/AutoStoriesOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
@@ -162,6 +163,8 @@ export function DashboardPage() {
     const classes = overview?.classes ?? [];
     const classCount = classes.length;
     const semesterTitle = overview?.activeSemester?.title;
+    const totalLessonsPublished = classes.reduce((s, c) => s + c.lessonsPublished, 0);
+    const totalLessons = classes.reduce((s, c) => s + c.totalLessons, 0);
 
     return (
       <>
@@ -186,33 +189,38 @@ export function DashboardPage() {
                     ? `across ${classCount} class${classCount === 1 ? "" : "es"} · ${semesterTitle}`
                     : `across ${classCount} class${classCount === 1 ? "" : "es"}`
                 }
-                href="/classes"
-                icon={<GroupsOutlinedIcon sx={{ fontSize: 20 }} />}
-              />
+                icon={<GroupsOutlinedIcon sx={{ fontSize: 24 }} />}
+                iconBg="bg-navy-50 text-navy-700 ring-navy-100 rounded-lg"
+                />
+    
               <StatCard
                 title="Lessons Published"
-                value="Coming soon"
-                helper="Lesson publishing isn't exposed by the backend yet."
-                icon={<AutoStoriesOutlinedIcon sx={{ fontSize: 20 }} />}
-                muted
+                value={totalLessons === 0 ? "—" : `${totalLessonsPublished} / ${totalLessons}`}
+                helper={
+                  totalLessons > 0
+                    ? `${Math.round((totalLessonsPublished / totalLessons) * 100)}% of semester`
+                    : "No lessons created yet"
+                }
+                icon={<MenuBookOutlinedIcon sx={{ fontSize: 24 }} />}
+                iconBg="bg-navy-50 text-navy-700 ring-navy-100 rounded-lg"
               />
             </div>
 
-            <div className="mt-6">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-serif-display text-[1.1rem] font-semibold leading-7 text-navy-900">
+            <div className="mt-6 overflow-hidden rounded-2xl border border-ink-100 bg-white">
+              <div className="flex items-center justify-between gap-3 px-5 py-4">
+                <h2 className="font-serif-display text-[1.05rem] font-semibold text-navy-900">
                   My classes
                 </h2>
                 <Link
                   href="/classes"
-                  className="inline-flex items-center gap-1 text-sm font-semibold text-navy-700 transition hover:text-navy-900"
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-navy-700  hover:text-navy-900"
                 >
                   View all classes
                   <ArrowOutwardRoundedIcon sx={{ fontSize: 16 }} />
                 </Link>
               </div>
 
-              <div className="mt-4">
+              <div className="border-t border-ink-100 p-4">
                 {classCount === 0 ? (
                   <EmptyState
                     title="No classes assigned"
@@ -253,7 +261,7 @@ export function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {cards.map(([title, href, description]) => (
           <Link key={href} href={href}>
-            <Card className="h-full p-5 transition hover:-translate-y-0.5 hover:shadow-pop">
+            <Card className="h-full p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 className="font-semibold text-navy-900">{title}</h2>
@@ -285,7 +293,7 @@ function Metric({
 }) {
   return (
     <Link href={href}>
-      <Card hover className="p-5">
+      <Card className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-ink-500">
@@ -317,7 +325,7 @@ function MetricLabel({
 }) {
   return (
     <Link href={href}>
-      <Card hover className="p-5">
+      <Card className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-ink-500">
@@ -342,34 +350,30 @@ function StatCard({
   helper,
   icon,
   href,
-  muted = false,
+  iconBg = "bg-navy-50 text-navy-800 ring-navy-100",
 }: {
   title: string;
   value: string;
   helper?: string;
   icon?: React.ReactNode;
   href?: string;
-  muted?: boolean;
+  iconBg?: string;
 }) {
   const inner = (
-    <Card hover={Boolean(href)} className="h-full p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
+    <Card className="h-full p-5">
+      <div className="flex-col items-start justify-between gap-3 flex">
+        <span className={` inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ring-1 ${iconBg}`}>
+          {icon}
+        </span>
+        <div className="flex-1">
           <p className="text-[11px] font-bold uppercase tracking-wider text-ink-500">
             {title}
           </p>
-          <p
-            className={`mt-2 font-serif-display text-[1.65rem] font-semibold leading-8 ${
-              muted ? "text-ink-400" : "text-navy-900"
-            }`}
-          >
+          <p className="mt-1 font-serif-display text-[1.45rem] font-semibold leading-8 text-navy-900">
             {value}
           </p>
-          {helper && <p className="mt-1 text-sm text-ink-500">{helper}</p>}
+          {helper && <p className="mt-0.5 text-xs text-ink-500">{helper}</p>}
         </div>
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-navy-50 text-navy-800 ring-1 ring-navy-100">
-          {icon}
-        </span>
       </div>
     </Card>
   );

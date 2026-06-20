@@ -244,7 +244,7 @@ export function LecturerClassDetailPage({ id }: { id: string }) {
           )}
 
           {activeTab === "overview" && (
-            <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
+            <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
               <Card className="overflow-hidden p-0">
                 <div className="bg-gradient-to-r from-navy-900 to-navy-700 px-6 py-6 text-cream-100">
                   <div className="flex items-start justify-between gap-6">
@@ -1716,8 +1716,8 @@ function WeekCard({
   ).length;
 
   return (
-    <Card className="overflow-hidden p-0">
-      <div className="flex items-center justify-between gap-3 border-b border-ink-100 bg-cream-100/60 px-5 py-3">
+    <Card className="p-0">
+      <div className="flex items-center justify-between gap-3 rounded-t-xl2 border-b border-ink-100 bg-cream-100/60 px-5 py-3">
         <div className="flex items-center gap-2">
           <DragIndicatorRoundedIcon
             fontSize="small"
@@ -1892,7 +1892,7 @@ function WeekCard({
             </Reorder.Group>
           )}
 
-          <div className="flex flex-wrap items-center gap-x-1 gap-y-1 border-t border-ink-100 bg-cream-50/50 px-5 py-2.5">
+          <div className="flex flex-wrap items-center gap-x-1 gap-y-1 rounded-b-xl2 border-t border-ink-100 bg-cream-50/50 px-5 py-2.5">
             <FooterLink onClick={onAddMaterial}>
               <AddRoundedIcon sx={{ fontSize: 16 }} /> Material
             </FooterLink>

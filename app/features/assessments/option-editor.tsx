@@ -80,38 +80,15 @@ export function OptionEditor({
     );
   }
 
-  function toggleCorrect(key: string) {
-    setDirty(true);
-    setDraft((current) =>
-      current.map((row) => {
-        if (type === "mcq_multiple") {
-          return row.key === key
-            ? { ...row, is_correct: !row.is_correct }
-            : row;
-        }
-        return { ...row, is_correct: row.key === key };
-      }),
-    );
-  }
-
-  function addRow() {
-    setDirty(true);
-    setDraft((current) => [...current, emptyOption()]);
-  }
-
-  function removeRow(key: string) {
-    setDirty(true);
-    setDraft((current) => current.filter((row) => row.key !== key));
-  }
-
-  async function save() {
+  async function saveWith(current: DraftOption[]) {
+    if (saving) return;
     setSaving(true);
     setError("");
     try {
-      const cleaned = draft
+      const cleaned = current
         .map((row) => ({ ...row, option_text: row.option_text.trim() }))
         .filter((row) => row.option_text);
-      if (cleaned.length === 0) throw new Error("Add at least one option.");
+      if (cleaned.length === 0) return;
       for (const option of options.data?.options ?? []) {
         await api.questions.removeOption(option.id);
       }
@@ -125,10 +102,34 @@ export function OptionEditor({
       await options.reload();
       setDirty(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save options failed");
+      setError(err instanceof Error ? err.message : "Auto-save failed");
     } finally {
       setSaving(false);
     }
+  }
+
+  function addRow() {
+    setDirty(true);
+    setDraft((current) => [...current, emptyOption()]);
+  }
+
+  function removeRow(key: string) {
+    const next = draft.filter((row) => row.key !== key);
+    setDraft(next);
+    setDirty(true);
+    saveWith(next);
+  }
+
+  function toggleCorrectAndSave(key: string) {
+    const next = draft.map((row) => {
+      if (type === "mcq_multiple") {
+        return row.key === key ? { ...row, is_correct: !row.is_correct } : row;
+      }
+      return { ...row, is_correct: row.key === key };
+    });
+    setDraft(next);
+    setDirty(true);
+    saveWith(next);
   }
 
   if (options.loading) return <LoadingState label="Loading options" />;
@@ -136,18 +137,19 @@ export function OptionEditor({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-ink-500">
-          Answer choices
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-ink-500">
+            Answer choices
+          </h3>
+          {saving && <span className="text-[11px] text-ink-400">Saving…</span>}
+        </div>
         <Button variant="secondary" size="sm" type="button" onClick={addRow}>
           + Add option
         </Button>
       </div>
       {options.error && <ErrorState message={options.error} />}
       {draft.length > 0 && correctCount === 0 && (
-        <p className="text-xs text-gold-700">
-          No option is marked correct yet.
-        </p>
+        <p className="text-xs text-gold-700">No option is marked correct yet.</p>
       )}
       {type === "mcq_single" && correctCount > 1 && (
         <p className="text-xs text-gold-700">
@@ -156,16 +158,13 @@ export function OptionEditor({
       )}
       <div className="space-y-3">
         {draft.map((row) => (
-          <div
-            key={row.key}
-            className="rounded-xl border border-ink-100 bg-white p-3"
-          >
+          <div key={row.key} className="rounded-xl border border-ink-100 bg-white p-3">
             <div className="flex items-start gap-3">
               <input
                 type={type === "mcq_multiple" ? "checkbox" : "radio"}
                 name={`correct-${questionId}`}
                 checked={row.is_correct}
-                onChange={() => toggleCorrect(row.key)}
+                onChange={() => toggleCorrectAndSave(row.key)}
                 className="mt-2.5"
               />
               <div className="flex-1 space-y-2">
@@ -173,17 +172,15 @@ export function OptionEditor({
                   className={inputClass}
                   value={row.option_text}
                   placeholder="Option text"
-                  onChange={(e) =>
-                    updateRow(row.key, { option_text: e.target.value })
-                  }
+                  onChange={(e) => updateRow(row.key, { option_text: e.target.value })}
+                  onBlur={() => dirty && saveWith(draft)}
                 />
                 <textarea
                   className={textareaClass}
                   value={row.feedback}
                   placeholder="Feedback (optional)"
-                  onChange={(e) =>
-                    updateRow(row.key, { feedback: e.target.value })
-                  }
+                  onChange={(e) => updateRow(row.key, { feedback: e.target.value })}
+                  onBlur={() => dirty && saveWith(draft)}
                 />
               </div>
               <Button
@@ -198,17 +195,10 @@ export function OptionEditor({
           </div>
         ))}
         {draft.length === 0 && (
-          <p className="text-sm text-ink-500">
-            No options yet. Add at least one.
-          </p>
+          <p className="text-sm text-ink-500">No options yet. Add at least one.</p>
         )}
       </div>
       {error && <ErrorState message={error} />}
-      <div className="flex justify-end">
-        <Button loading={saving} type="button" onClick={save} disabled={!dirty}>
-          Save options
-        </Button>
-      </div>
     </div>
   );
 }

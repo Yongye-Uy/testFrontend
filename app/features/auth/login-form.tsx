@@ -64,7 +64,7 @@ function LoginInner() {
 
   return (
     <main className="flex min-h-screen bg-cream-100">
-      <section className="hidden w-[46%] flex-col overflow-hidden bg-navy-900 text-cream-50 lg:flex">
+      <section className="hidden w-[46%] flex-col overflow-hidden bg-navy-900 text-cream-50 lg:flex ">
         <div className="relative z-10 flex h-full flex-col p-10">
           <div className="inline-flex items-center gap-3">
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/15">
@@ -84,7 +84,7 @@ function LoginInner() {
             <div className="mb-6 flex items-center gap-3">
               <span className="h-px w-10 bg-gold-500" />
               <span className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gold-400">
-                Local Login
+                EPP Learning Platform
               </span>
             </div>
             <h1 className="font-serif-display text-4xl font-semibold leading-[1.05] xl:text-[3.6rem]">
@@ -129,7 +129,7 @@ function LoginInner() {
           </div>
 
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-gold-700">
-            Local Login
+            Login
           </p>
           <h2 className="font-serif-display text-[2rem] font-semibold text-navy-900">
             Welcome back
@@ -199,7 +199,7 @@ function LoginInner() {
                 Continue with Google
               </Button>
 
-              <p className="text-center text-[11px] leading-5 text-ink-500">
+              {/* <p className="text-center text-[11px] leading-5 text-ink-500">
                 Invited users can finish account setup from their email link,
                 then optionally link Google for future sign-in.
               </p>
@@ -207,7 +207,7 @@ function LoginInner() {
               <p className="text-center text-[11px] text-ink-500">
                 Missing your invite? Contact your{" "}
                 {platformConfig.platform_name} administrator or director.
-              </p>
+              </p> */}
             </div>
           </div>
         </form>

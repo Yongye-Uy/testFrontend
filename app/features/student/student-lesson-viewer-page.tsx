@@ -127,7 +127,7 @@ export function StudentLessonViewerPage({
 
         {/* Viewer header */}
         <div className="px-6 py-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gold-600">
+          <p className="text-[10px] font-bold uppercase tracking-widest  text-gold-400">
             {cls?.course_code}
           </p>
           <h1 className="mt-1 font-serif-display text-[1.35rem] font-semibold text-navy-900">

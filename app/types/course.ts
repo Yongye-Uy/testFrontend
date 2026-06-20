@@ -56,6 +56,8 @@ export type LessonItem = {
   view_url: string | null;
   progress_status?: string;
   require_previous?: boolean;
+  require_open_date?: boolean;
+  scheduled_open_date?: string; // RFC3339
 };
 
 export type ClassLesson = {
@@ -63,6 +65,7 @@ export type ClassLesson = {
   title: string;
   lesson_order: number;
   item_count: number;
+  unlocked_item_count: number;
   items: LessonItem[];
 };
 

@@ -5,6 +5,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { LoadingState } from "@/components/shared/loading-state";
 import { Button } from "@/components/ui/button";
 import { textareaClass } from "@/components/ui/field";
+
 import { api } from "@/app/services/api-client";
 import { useAsync } from "@/app/features/shared/use-async";
 import { AnswerEditor } from "./answer-editor";
@@ -36,20 +37,6 @@ export function QuestionEditor({
     });
   }, [question.data]);
 
-  async function save() {
-    setSaving(true);
-    setError("");
-    try {
-      await api.questions.update(questionId, form);
-      await question.reload();
-      await onSaved();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Save question failed");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function remove() {
     if (
       !window.confirm(
@@ -77,12 +64,46 @@ export function QuestionEditor({
     form.question_text !== question.data.question_text ||
     form.type !== question.data.type;
 
+  async function saveOnBlur() {
+    if (!dirty) return;
+    setSaving(true);
+    setError("");
+    try {
+      await api.questions.update(questionId, form);
+      await question.reload();
+      await onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Auto-save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function changeType(newType: string) {
+    const updated = { ...form, type: newType };
+    setForm(updated);
+    setSaving(true);
+    setError("");
+    try {
+      await api.questions.update(questionId, updated);
+      await question.reload();
+      await onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Auto-save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-ink-500">
-          Question editor
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-ink-500">
+            Question editor
+          </h3>
+          {saving && <span className="text-[11px] text-ink-400">Saving…</span>}
+        </div>
         <Button
           variant="danger"
           size="sm"
@@ -103,9 +124,7 @@ export function QuestionEditor({
             <button
               key={option.value}
               type="button"
-              onClick={() =>
-                setForm((current) => ({ ...current, type: option.value }))
-              }
+              onClick={() => changeType(option.value)}
               className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
                 form.type === option.value
                   ? "bg-navy-800 text-cream-50 shadow-soft"
@@ -131,28 +150,11 @@ export function QuestionEditor({
               question_text: e.target.value,
             }))
           }
+          onBlur={saveOnBlur}
         />
       </div>
 
       {error && <ErrorState message={error} />}
-
-      <div className="flex items-center justify-between gap-3">
-        {dirty && (
-          <p className="text-xs text-gold-700">
-            Save question changes before editing answer choices for the new
-            type.
-          </p>
-        )}
-        <Button
-          loading={saving}
-          type="button"
-          onClick={save}
-          disabled={!dirty}
-          className="ml-auto"
-        >
-          Save question
-        </Button>
-      </div>
 
       <div className="border-t border-ink-100 pt-5">
         {question.data.type === "fill_blank" ? (

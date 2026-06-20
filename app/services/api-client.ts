@@ -566,6 +566,8 @@ function normalizeLessonItem(raw: unknown): LessonItem {
     })(),
     progress_status: typeof value.progress_status === "string" ? value.progress_status : undefined,
     require_previous: typeof value.require_previous === "boolean" ? value.require_previous : undefined,
+    require_open_date: typeof value.require_open_date === "boolean" ? value.require_open_date : undefined,
+    scheduled_open_date: typeof value.scheduled_open_date === "string" ? value.scheduled_open_date : undefined,
   };
 }
 
@@ -576,6 +578,7 @@ function normalizeLesson(raw: unknown): ClassLesson {
     title: String(value.title ?? "Untitled lesson"),
     lesson_order: toNumber(value.lesson_order) ?? 0,
     item_count: toNumber(value.item_count) ?? 0,
+    unlocked_item_count: toNumber(value.unlocked_item_count) ?? 0,
     items: [],
   };
 }

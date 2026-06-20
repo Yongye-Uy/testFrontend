@@ -2,12 +2,10 @@
 
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
-import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 import PlayCircleOutlineRoundedIcon from "@mui/icons-material/PlayCircleOutlineRounded";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
-import RadioButtonUncheckedRoundedIcon from "@mui/icons-material/RadioButtonUncheckedRounded";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
@@ -30,9 +28,7 @@ function materialTypeLabel(type: string | null): string {
 
 function itemIcon(item: LessonItem) {
   if (item.item_type === "assessment") {
-    return (
-      <AssignmentOutlinedIcon style={{ fontSize: 15 }} className="text-gold-600" />
-    );
+    return <AssignmentOutlinedIcon style={{ fontSize: 15 }} className="text-gold-500" />;
   }
   const t = item.material_type ?? "";
   if (t === "pdf") return <PictureAsPdfOutlinedIcon style={{ fontSize: 15 }} className="text-rose-500" />;
@@ -40,22 +36,44 @@ function itemIcon(item: LessonItem) {
   return <ArticleOutlinedIcon style={{ fontSize: 15 }} className="text-ink-500" />;
 }
 
-function statusIcon(item: LessonItem) {
+function StatusCircle({ item }: { item: LessonItem }) {
   const ps = item.progress_status;
-  if (!item.is_unlocked) {
-    return <LockOutlinedIcon style={{ fontSize: 18 }} className="text-ink-300" />;
-  }
-  if (ps === "completed") {
-    return <CheckCircleRoundedIcon style={{ fontSize: 18 }} className="text-emerald-500" />;
-  }
-  if (ps === "in_progress") {
+  const isDraft = item.item_type === "assessment" && item.status === "draft";
+  if (!item.is_unlocked || isDraft) {
     return (
-      <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full border-2 border-blue-500">
-        <span className="h-2 w-2 rounded-full bg-blue-500" />
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink-100">
+        <LockOutlinedIcon style={{ fontSize: 14 }} className="text-ink-400" />
       </span>
     );
   }
-  return <RadioButtonUncheckedRoundedIcon style={{ fontSize: 18 }} className="text-ink-300" />;
+  if (ps === "completed") {
+    return (
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-700">
+          {/* transparent checkmark via SVG stroke */}
+          <svg width="11" height="8" viewBox="0 0 11 8" fill="none">
+            <path
+              d="M1 4L4 7L10 1"
+              stroke="white"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      </span>
+    );
+  }
+  if (ps === "in_progress") {
+    return (
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-blue-400 bg-white">
+        <span className="h-2.5 w-2.5 rounded-full bg-blue-400" />
+      </span>
+    );
+  }
+  return (
+    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-ink-200 bg-white" />
+  );
 }
 
 function itemAction(
@@ -65,6 +83,7 @@ function itemAction(
   if (!item.is_unlocked) return { label: "Locked", disabled: true };
 
   if (item.item_type === "assessment") {
+    if (item.status === "draft") return { label: "Locked", disabled: true };
     const ps = item.progress_status;
     if (ps === "completed") {
       return { label: "Review result", href: routes.quiz(classId, item.id) };
@@ -79,30 +98,53 @@ function itemAction(
   return { label: "Start", href: routes.lessonViewer(classId, item.id) };
 }
 
+function lockReason(item: LessonItem, prevItem: LessonItem | null): string {
+  if (item.require_open_date && item.scheduled_open_date) {
+    const date = new Date(item.scheduled_open_date);
+    return `Opens ${date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+  }
+  if (item.require_previous && prevItem) {
+    if (prevItem.item_type === "assessment") {
+      const pct = prevItem.pass_threshold_percent;
+      return pct
+        ? `Pass "${prevItem.title}" with ${pct}% to unlock`
+        : `Pass "${prevItem.title}" to unlock`;
+    }
+    return `Complete "${prevItem.title}" to unlock`;
+  }
+  return "Complete previous lessons to unlock";
+}
+
 function LessonOutlineItem({
   classId,
   item,
+  prevItem,
   dayIndex,
 }: {
   classId: string;
   item: LessonItem;
+  prevItem: LessonItem | null;
   dayIndex: number;
 }) {
   const action = itemAction(classId, item);
   const isAssessment = item.item_type === "assessment";
   const isCompleted = item.progress_status === "completed";
+  const isDraft = isAssessment && item.status === "draft";
+  const isDisabled = !item.is_unlocked || isDraft;
 
   return (
-    <div
-      className={`flex items-center gap-3 rounded-xl px-4 py-3 ${
-        item.is_unlocked ? "bg-white" : "bg-ink-50 opacity-70"
-      } border border-ink-100`}
-    >
-      <span className="shrink-0">{statusIcon(item)}</span>
+    <div className={`flex items-center gap-4 py-3.5 ${isAssessment ? "-mx-5 bg-gold-50 px-5" : ""} ${isDisabled ? "opacity-60" : ""}`}>
+      {isAssessment && !isDisabled && !isCompleted ? (
+        <span className="flex h-8 w-8 shrink-0 items-center rounded-full justify-center bg-gold-200">
+          <AssignmentOutlinedIcon style={{ fontSize: 17 }} className="text-gold-700" />
+        </span>
+      ) : (
+        <StatusCircle item={item} />
+      )}
 
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         {isAssessment ? (
-          <span className="text-[9px] font-bold uppercase tracking-widest text-gold-600">
+          <span className="text-[9px] font-bold uppercase tracking-widest text-gold-700">
             Assessment
             {item.question_count ? ` · ${item.question_count} questions` : ""}
             {item.time_limit_seconds
@@ -118,15 +160,18 @@ function LessonOutlineItem({
           </span>
         )}
 
-        <span className={`truncate text-sm font-medium ${item.is_unlocked ? "text-navy-900" : "text-ink-500"}`}>
+        <span className={`truncate text-sm font-semibold ${isDisabled ? "text-ink-500" : isAssessment ? "text-navy-800" : "text-navy-900"}`}>
           {item.title}
         </span>
 
         {isAssessment && isCompleted && (
           <span className="text-[10px] text-emerald-600">✓ Passed · Score {item.pass_threshold_percent ?? "—"}%</span>
         )}
-        {!item.is_unlocked && (
-          <span className="text-[10px] text-ink-400">Complete previous lessons to unlock</span>
+        {isDraft && (
+          <span className="text-[10px] text-ink-400">Not yet published by lecturer</span>
+        )}
+        {!item.is_unlocked && !isDraft && (
+          <span className="text-[10px] text-ink-400">{lockReason(item, prevItem)}</span>
         )}
       </div>
 
@@ -164,29 +209,32 @@ function LessonGroup({
   let dayCounter = 0;
 
   return (
-    <div className="mb-6">
-      <div className="mb-3 flex items-center justify-between">
+    <div className="mb-5 overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-sm">
+      {/* Week header */}
+      <div className="flex items-start justify-between border-b bg-cream-50 border-ink-100 px-5 py-4">
         <div>
-          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-ink-400">
+          <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gold-500 ">
             Week {index + 1}
           </p>
-          <h3 className="font-serif-display text-[1rem] font-semibold text-navy-900">
+          <h3 className="mt-0.5 font-serif-display text-[1rem] font-semibold text-navy-900">
             {lesson.title}
           </h3>
         </div>
-        <span className="text-[11px] text-ink-500">
+        <span className="mt-0.5 text-[11px] text-ink-400">
           {completedItems} / {total} lessons
         </span>
       </div>
 
-      <div className="space-y-2">
-        {lesson.items.map((item) => {
+      {/* Items — divided list, no individual borders */}
+      <div className="divide-y divide-ink-100 px-5">
+        {lesson.items.map((item, idx) => {
           if (item.item_type !== "assessment") dayCounter += 1;
           return (
             <LessonOutlineItem
               key={item.id}
               classId={classId}
               item={item}
+              prevItem={idx > 0 ? lesson.items[idx - 1] : null}
               dayIndex={item.item_type !== "assessment" ? dayCounter : 0}
             />
           );
@@ -206,15 +254,22 @@ export function StudentClassDetailPage({ classId }: { classId: string }) {
     () => api.student.continueLearning(classId),
     [classId],
   );
+  const batchData = useAsync(
+    () => api.classes.batches(classId).then((r) => r.batches[0] ?? null),
+    [classId],
+  );
 
   const cls = classData.data;
   const lessons = lessonsData.data ?? [];
+  const batch = batchData.data;
 
   const cont = continueLearning.data as
     | {
         has_continue?: boolean;
         lesson_item_id?: number;
+        lesson_id?: number;
         lesson_title?: string;
+        item_title?: string;
         item_type?: string;
         material_type?: string;
       }
@@ -225,7 +280,6 @@ export function StudentClassDetailPage({ classId }: { classId: string }) {
   const completed = allItems.filter((i) => i.progress_status === "completed").length;
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  const semesterTitle = cls?.semester_title ?? "";
   const courseTitle = cls?.course_title ?? "Class";
   const courseCode = cls?.course_code ?? "";
 
@@ -235,6 +289,30 @@ export function StudentClassDetailPage({ classId }: { classId: string }) {
       ? routes.quiz(classId, String(cont.lesson_item_id))
       : routes.lessonViewer(classId, String(cont.lesson_item_id))
     : undefined;
+
+  // Compute "Week N · Day M" label for the resume card
+  const continueWeekDay = (() => {
+    if (!hasContinue || !cont?.lesson_id) return null;
+    const weekIdx = lessons.findIndex((l) => String(l.id) === String(cont.lesson_id));
+    if (weekIdx === -1) return null;
+    const lesson = lessons[weekIdx];
+    let dayCounter = 0;
+    for (const item of lesson.items) {
+      if (item.item_type !== "assessment") dayCounter += 1;
+      if (String(item.id) === String(cont.lesson_item_id)) {
+        return item.item_type !== "assessment"
+          ? `Week ${weekIdx + 1} · Day ${dayCounter}`
+          : `Week ${weekIdx + 1} · Assessment`;
+      }
+    }
+    return `Week ${weekIdx + 1}`;
+  })();
+
+  const continueTypeLabel = cont?.material_type
+    ? materialTypeLabel(cont.material_type)
+    : cont?.item_type === "assessment"
+    ? "Assessment"
+    : "Doc";
 
   return (
     <>
@@ -256,72 +334,78 @@ export function StudentClassDetailPage({ classId }: { classId: string }) {
       />
 
       {/* Main info + resume layout */}
-      <div className={`mb-5 flex gap-4 ${hasContinue ? "items-stretch" : ""}`}>
+      <div className="mb-5 flex gap-4 items-stretch">
         {/* Class info card */}
-        <Card className={`flex-1 p-5 ${hasContinue ? "" : "w-full"}`}>
-          <div className="flex items-start justify-between gap-6">
-            <div className="flex flex-wrap gap-6">
-              {courseCode && (
-                <div>
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-ink-400 flex items-center gap-1">
-                    <SchoolOutlinedIcon style={{ fontSize: 11 }} />
-                    Course
-                  </p>
-                  <p className="mt-1 font-semibold text-navy-900">{courseCode}</p>
-                  <span className="mt-1 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
-                    Active
-                  </span>
-                </div>
-              )}
+        <Card className="flex-1 p-5">
+          {/* Top row: code badge + active pill */}
+          <div className="mb-4 flex items-center gap-2">
+            {courseCode && (
+              <span className="rounded bg-navy-100 px-2 py-0.5 text-[11px] font-bold tracking-wider text-navy-800">
+                {courseCode}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              Active
+            </span>
+          </div>
 
+          {/* Info columns + progress ring */}
+          <div className="flex items-center gap-6">
+            <div className="flex flex-1 flex-wrap gap-6">
               {cls?.lecturer_name && (
                 <div>
                   <p className="text-[9px] font-bold uppercase tracking-widest text-ink-400 flex items-center gap-1">
                     <PersonOutlineRoundedIcon style={{ fontSize: 11 }} />
                     Lecturer
                   </p>
-                  <p className="mt-1 font-semibold text-navy-900">{cls.lecturer_name}</p>
+                  <p className="mt-1 text-sm font-semibold text-navy-900">{cls.lecturer_name}</p>
                 </div>
               )}
 
-              {semesterTitle && (
+              {batch?.name && (
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-ink-400 flex items-center gap-1">
+                    <SchoolOutlinedIcon style={{ fontSize: 11 }} />
+                    Batch
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-navy-900">{batch.name}</p>
+                </div>
+              )}
+
+              {cls?.semester_title && (
                 <div>
                   <p className="text-[9px] font-bold uppercase tracking-widest text-ink-400 flex items-center gap-1">
                     <CalendarTodayOutlinedIcon style={{ fontSize: 11 }} />
                     Semester
                   </p>
-                  <p className="mt-1 font-semibold text-navy-900">{semesterTitle}</p>
+                  <p className="mt-1 text-sm font-semibold text-navy-900">{cls.semester_title}</p>
                 </div>
               )}
             </div>
 
             <div className="flex shrink-0 flex-col items-center gap-1">
-              <ProgressRing percent={percent} size={72} stroke={6} />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">
-                Progress
-              </span>
+              <ProgressRing percent={percent} size={90} stroke={9} />
+            
             </div>
           </div>
         </Card>
 
-        {/* Resume card — separate panel */}
+        {/* Resume card */}
         {hasContinue && continueHref && (
-          <div className="flex w-72 shrink-0 flex-col justify-between rounded-2xl bg-navy-900 p-5 text-cream-50">
+          <div className="flex w-130 shrink-0 flex-col justify-between rounded-2xl bg-navy-900 p-5 text-cream-50">
             <div>
-              <p className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-navy-300">
+              <p className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gold-400">
                 <PlayArrowRoundedIcon style={{ fontSize: 12 }} />
                 Resume where you left off
               </p>
-              <p className="mt-2 text-[10px] text-navy-400">
-                {cont?.material_type
-                  ? materialTypeLabel(cont.material_type)
-                  : cont?.item_type === "assessment"
-                  ? "Assessment"
-                  : "Lesson"}
+              {continueWeekDay && (
+                <p className="mt-2 text-[11px] font-medium text-navy-400">{continueWeekDay}</p>
+              )}
+              <p className="mt-1 font-serif-display text-[1rem] font-semibold leading-snug">
+                {cont?.item_title || cont?.lesson_title || "Continue learning"}
               </p>
-              <p className="mt-0.5 font-serif-display text-[1rem] font-semibold leading-snug">
-                {cont?.lesson_title ?? "Continue learning"}
-              </p>
+              <p className="mt-1 text-[11px] text-navy-400">{continueTypeLabel}</p>
             </div>
             <Link
               href={continueHref}
@@ -337,7 +421,7 @@ export function StudentClassDetailPage({ classId }: { classId: string }) {
       <div className="mb-5 flex items-start gap-3 rounded-xl border border-gold-200 bg-gold-50 px-4 py-3">
         <WarningAmberRoundedIcon
           style={{ fontSize: 18 }}
-          className="mt-0.5 shrink-0 text-gold-600"
+          className="mt-0.5 shrink-0 text-gold-500"
         />
         <p className="text-[12px] text-gold-900">
           <strong>Assessment wall:</strong> Future lessons unlock as you complete
