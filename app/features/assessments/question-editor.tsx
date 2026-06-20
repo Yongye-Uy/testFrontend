@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { ErrorState } from "@/components/shared/error-state";
@@ -17,11 +17,13 @@ export function QuestionEditor({
   questionId,
   onSaved,
   onDeleted,
+  structureLocked = false,
 }: {
   assessmentId: string;
   questionId: string;
   onSaved: () => Promise<void>;
   onDeleted: () => Promise<void>;
+  structureLocked?: boolean;
 }) {
   const question = useAsync(() => api.questions.get(questionId), [questionId]);
   const [form, setForm] = useState({ question_text: "", type: "mcq_single" });
@@ -65,7 +67,7 @@ export function QuestionEditor({
     form.type !== question.data.type;
 
   async function saveOnBlur() {
-    if (!dirty) return;
+    if (!dirty || structureLocked) return;
     setSaving(true);
     setError("");
     try {
@@ -80,6 +82,7 @@ export function QuestionEditor({
   }
 
   async function changeType(newType: string) {
+    if (structureLocked) return;
     const updated = { ...form, type: newType };
     setForm(updated);
     setSaving(true);
@@ -104,15 +107,17 @@ export function QuestionEditor({
           </h3>
           {saving && <span className="text-[11px] text-ink-400">Saving…</span>}
         </div>
-        <Button
-          variant="danger"
-          size="sm"
-          type="button"
-          loading={deleting}
-          onClick={remove}
-        >
-          Delete question
-        </Button>
+        {!structureLocked && (
+          <Button
+            variant="danger"
+            size="sm"
+            type="button"
+            loading={deleting}
+            onClick={remove}
+          >
+            Delete question
+          </Button>
+        )}
       </div>
 
       <div>
@@ -124,11 +129,14 @@ export function QuestionEditor({
             <button
               key={option.value}
               type="button"
+              disabled={structureLocked}
               onClick={() => changeType(option.value)}
               className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
                 form.type === option.value
                   ? "bg-navy-800 text-cream-50 shadow-soft"
-                  : "bg-cream-200 text-navy-800 hover:bg-cream-300"
+                  : structureLocked
+                    ? "cursor-not-allowed bg-cream-100 text-ink-400"
+                    : "bg-cream-200 text-navy-800 hover:bg-cream-300"
               }`}
             >
               {option.label}
@@ -143,8 +151,10 @@ export function QuestionEditor({
         </p>
         <textarea
           className={textareaClass}
-          value={form.question_text}
+          value={form.question_text ?? ""}
+          readOnly={structureLocked}
           onChange={(e) =>
+            !structureLocked &&
             setForm((current) => ({
               ...current,
               question_text: e.target.value,
@@ -158,9 +168,9 @@ export function QuestionEditor({
 
       <div className="border-t border-ink-100 pt-5">
         {question.data.type === "fill_blank" ? (
-          <AnswerEditor questionId={questionId} />
+          <AnswerEditor questionId={questionId} structureLocked={structureLocked} />
         ) : (
-          <OptionEditor questionId={questionId} type={question.data.type} />
+          <OptionEditor questionId={questionId} type={question.data.type} structureLocked={structureLocked} />
         )}
       </div>
     </div>

@@ -29,6 +29,16 @@ export function QuestionsPanel({
         : Promise.resolve({ questions: [] }),
     [assessmentId],
   );
+  // Structure is locked once any student has submitted this assessment.
+  const submissionsCheck = useAsync(
+    () =>
+      assessmentId
+        ? api.assessments.submissions(assessmentId).catch(() => ({ submissions: [] }))
+        : Promise.resolve({ submissions: [] }),
+    [assessmentId],
+  );
+  const structureLocked = (submissionsCheck.data?.submissions?.length ?? 0) > 0;
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
@@ -122,19 +132,30 @@ export function QuestionsPanel({
           ))}
         </div>
         <div className="border-t border-ink-100 p-3">
-          <Button
-            variant="secondary"
-            className="w-full"
-            loading={adding}
-            type="button"
-            onClick={addQuestion}
-          >
-            + Add question
-          </Button>
+          {structureLocked ? (
+            <p className="px-1 text-xs text-ink-500">
+              Questions are locked — students have already submitted this assessment.
+            </p>
+          ) : (
+            <Button
+              variant="secondary"
+              className="w-full"
+              loading={adding}
+              type="button"
+              onClick={addQuestion}
+            >
+              + Add question
+            </Button>
+          )}
         </div>
       </Card>
 
       <Card className="p-6">
+        {structureLocked && (
+          <div className="mb-4 rounded-lg bg-gold-50 px-4 py-3 text-sm text-gold-700 ring-1 ring-gold-200">
+            This assessment has submissions. Questions and options cannot be changed.
+          </div>
+        )}
         {rows.length === 0 ? (
           <EmptyState
             title="No questions yet"
@@ -146,6 +167,7 @@ export function QuestionsPanel({
             questionId={selectedId}
             onSaved={questions.reload}
             onDeleted={handleDeleted}
+            structureLocked={structureLocked}
           />
         ) : null}
       </Card>

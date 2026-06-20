@@ -550,6 +550,9 @@ function normalizeLessonItem(raw: unknown): LessonItem {
     pass_threshold_percent: isAssessment
       ? (toNumber(assessment.pass_threshold_percent) ?? null)
       : null,
+    require_pass_threshold: isAssessment
+      ? Boolean(assessment.require_pass_threshold)
+      : false,
     time_limit_seconds: isAssessment
       ? (toNumber(assessment.time_limit_seconds) ?? null)
       : null,
@@ -1291,6 +1294,13 @@ export const api = {
       ).then((response) => ({
         lessons: (response.lessons ?? []).map(normalizeLesson),
       })),
+    archivedItems: (classId: string) =>
+      request<{ lesson_items?: unknown[] }>(
+        "course",
+        `/classes/${classId}/lesson-items/archived`,
+      ).then((response) => ({
+        items: (response.lesson_items ?? []).map(normalizeLessonItem),
+      })),
     reuseLesson: (classId: string, lessonId: string) =>
       request<{ lesson?: unknown }>(
         "course",
@@ -1401,6 +1411,18 @@ export const api = {
       request<{ lesson_item?: unknown }>(
         "course",
         `/classes/${classId}/lesson-items/${lessonItemId}/unlock`,
+        {
+          method: "POST",
+          ...jsonBody({
+            class_id: Number(classId),
+            lesson_item_id: Number(lessonItemId),
+          }),
+        },
+      ).then((response) => normalizeLessonItem(response.lesson_item)),
+    archiveItem: (classId: string, lessonItemId: string) =>
+      request<{ lesson_item?: unknown }>(
+        "course",
+        `/classes/${classId}/lesson-items/${lessonItemId}/archive`,
         {
           method: "POST",
           ...jsonBody({

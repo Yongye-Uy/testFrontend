@@ -25,6 +25,7 @@ const FEEDBACK_DISPLAY_OPTIONS = [
 type BuilderForm = {
   title: string;
   description: string;
+  requireTimeLimit: boolean;
   timeLimitMin: number;
   requirePassThreshold: boolean;
   passingScore: number;
@@ -40,6 +41,7 @@ type BuilderForm = {
 const EMPTY_FORM: BuilderForm = {
   title: "",
   description: "",
+  requireTimeLimit: false,
   timeLimitMin: 0,
   requirePassThreshold: false,
   passingScore: 70,
@@ -55,8 +57,8 @@ function toOptionsInput(form: BuilderForm): AssessmentOptionsInput {
   return {
     require_pass_threshold: form.requirePassThreshold,
     pass_threshold_percent: form.requirePassThreshold ? form.passingScore : 0,
-    require_time_limit: form.timeLimitMin > 0,
-    time_limit_seconds: Math.max(0, Math.round(form.timeLimitMin * 60)),
+    require_time_limit: form.requireTimeLimit,
+    time_limit_seconds: form.requireTimeLimit ? Math.max(0, Math.round(form.timeLimitMin * 60)) : 0,
     random_questions_count: Math.max(0, form.questionsPerAttempt),
     shuffle_questions: form.shuffleQuestions,
     shuffle_options: form.shuffleOptions,
@@ -258,17 +260,30 @@ export function AssessmentBuilderPage({
             </Field>
           </div>
 
-          <Field label="Time limit" hint="Minutes. 0 = no limit.">
-            <div className="flex items-center gap-2">
+          <Field label="Time limit">
+            <label className="flex items-center gap-2 text-sm text-navy-900">
               <input
-                type="number"
-                min={0}
-                className={inputClass}
-                value={form.timeLimitMin}
-                onChange={(e) => set("timeLimitMin", Number(e.target.value))}
+                type="checkbox"
+                checked={form.requireTimeLimit}
+                onChange={(e) => {
+                  set("requireTimeLimit", e.target.checked);
+                  if (!e.target.checked) set("timeLimitMin", 0);
+                }}
               />
-              <span className="text-xs font-medium text-ink-500">min</span>
-            </div>
+              Require a time limit
+            </label>
+            {form.requireTimeLimit && (
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  className={inputClass}
+                  value={form.timeLimitMin}
+                  onChange={(e) => set("timeLimitMin", Math.max(1, Number(e.target.value)))}
+                />
+                <span className="text-xs font-medium text-ink-500">min</span>
+              </div>
+            )}
           </Field>
 
           <Field label="Passing threshold">

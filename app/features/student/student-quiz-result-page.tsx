@@ -51,7 +51,7 @@ export function StudentQuizResultPage({
   const [loading, setLoading] = useState(true);
   const [scorePercent, setScorePercent] = useState<number | null>(null);
   const [passThreshold, setPassThreshold] = useState<number>(70);
-  const [requirePrevious, setRequirePrevious] = useState<boolean | null>(null);
+  const [requirePassThreshold, setRequirePassThreshold] = useState<boolean>(false);
   const [lessonItemId, setLessonItemId] = useState<string>("");
   const [retaking, setRetaking] = useState(false);
 
@@ -67,10 +67,10 @@ export function StudentQuizResultPage({
         setLessonItemId(liId);
 
         const lessonsRaw = await api.lessons.listForStudentClass(classId).then((r) => r.lessons).catch(() => []);
-        // find require_previous for this lesson item
-        const allItems = lessonsRaw.flatMap((l: { items: { id: string; require_previous?: boolean; pass_threshold_percent?: number | null }[] }) => l.items);
+        // find require_pass_threshold for this lesson item
+        const allItems = lessonsRaw.flatMap((l: { items: { id: string; require_pass_threshold?: boolean; pass_threshold_percent?: number | null }[] }) => l.items);
         const currentItem = allItems.find((i: { id: string }) => i.id === liId);
-        setRequirePrevious(currentItem?.require_previous ?? false);
+        setRequirePassThreshold(currentItem?.require_pass_threshold ?? false);
         if (currentItem?.pass_threshold_percent) {
           setPassThreshold(currentItem.pass_threshold_percent);
         }
@@ -91,8 +91,9 @@ export function StudentQuizResultPage({
         const selectedList = selectedRaw as SelectedOpt[];
         const selectedByQ: Record<string, Set<string>> = {};
         for (const s of selectedList) {
-          if (!selectedByQ[s.question_id]) selectedByQ[s.question_id] = new Set();
-          selectedByQ[s.question_id].add(s.option_id);
+          const qKey = String(s.question_id);
+          if (!selectedByQ[qKey]) selectedByQ[qKey] = new Set();
+          selectedByQ[qKey].add(String(s.option_id));
         }
 
         const qResults: QuestionResult[] = questions.map((q, idx) => {
@@ -143,8 +144,8 @@ export function StudentQuizResultPage({
 
   const percent = scorePercent ?? 0;
   const passed = percent >= passThreshold;
-  // require_previous=true → retake until pass; false → one-attempt only
-  const canRetake = requirePrevious === true && !passed;
+  // require_pass_threshold=true → student must pass, can retake until they do
+  const canRetake = requirePassThreshold && !passed;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -181,7 +182,7 @@ export function StudentQuizResultPage({
             <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">Passing score</p>
             <p className="text-[1.4rem] font-bold">{passThreshold}%</p>
           </div>
-          {requirePrevious === false && (
+          {!requirePassThreshold && (
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">Attempts</p>
               <p className="text-[1.4rem] font-bold">1 / 1</p>
@@ -203,11 +204,11 @@ export function StudentQuizResultPage({
 
         <div className="space-y-4">
           {results.map((r, idx) => {
-            const selectedOpts = r.options.filter((o) => r.selectedIds.has(o.id));
-            const correctIds = new Set(r.options.filter((o) => o.is_correct).map((o) => o.id));
+            const selectedOpts = r.options.filter((o) => r.selectedIds.has(String(o.id)));
+            const correctIds = new Set(r.options.filter((o) => o.is_correct).map((o) => String(o.id)));
             const selSet = r.selectedIds;
             const isCorrect =
-              selSet.size === correctIds.size && [...selSet].every((id) => correctIds.has(id));
+              selSet.size === correctIds.size && [...selSet].every((id) => correctIds.has(String(id)));
             const feedback = r.options.find((o) => o.feedback && o.is_correct)?.feedback;
 
             return (
@@ -313,7 +314,7 @@ export function StudentQuizResultPage({
             {retaking ? "Starting…" : "Retake quiz"}
           </button>
         )}
-        {requirePrevious === false && !passed && (
+        {!requirePassThreshold && !passed && (
           <span className="inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-ink-50 px-4 py-2.5 text-sm font-semibold text-ink-400">
             Cannot retake — one attempt only
           </span>

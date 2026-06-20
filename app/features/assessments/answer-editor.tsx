@@ -10,7 +10,13 @@ import { useAsync } from "@/app/features/shared/use-async";
 
 type DraftAnswer = { key: string; accepted_answer: string };
 
-export function AnswerEditor({ questionId }: { questionId: string }) {
+export function AnswerEditor({
+  questionId,
+  structureLocked = false,
+}: {
+  questionId: string;
+  structureLocked?: boolean;
+}) {
   const answers = useAsync(
     () => api.questions.listAnswers(questionId),
     [questionId],
@@ -85,9 +91,11 @@ export function AnswerEditor({ questionId }: { questionId: string }) {
         <h3 className="text-sm font-bold uppercase tracking-wider text-ink-500">
           Accepted answers
         </h3>
-        <Button variant="secondary" size="sm" type="button" onClick={addRow}>
-          + Add answer
-        </Button>
+        {!structureLocked && (
+          <Button variant="secondary" size="sm" type="button" onClick={addRow}>
+            + Add answer
+          </Button>
+        )}
       </div>
       {answers.error && <ErrorState message={answers.error} />}
       <p className="text-xs text-ink-500">
@@ -99,18 +107,21 @@ export function AnswerEditor({ questionId }: { questionId: string }) {
           <div key={row.key} className="flex items-center gap-2">
             <input
               className={inputClass}
-              value={row.accepted_answer}
+              value={row.accepted_answer ?? ""}
               placeholder="Accepted answer"
-              onChange={(e) => updateRow(row.key, e.target.value)}
+              readOnly={structureLocked}
+              onChange={(e) => !structureLocked && updateRow(row.key, e.target.value)}
             />
-            <Button
-              variant="ghost"
-              size="sm"
-              type="button"
-              onClick={() => removeRow(row.key)}
-            >
-              Remove
-            </Button>
+            {!structureLocked && (
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                onClick={() => removeRow(row.key)}
+              >
+                Remove
+              </Button>
+            )}
           </div>
         ))}
         {draft.length === 0 && (
@@ -120,11 +131,13 @@ export function AnswerEditor({ questionId }: { questionId: string }) {
         )}
       </div>
       {error && <ErrorState message={error} />}
-      <div className="flex justify-end">
-        <Button loading={saving} type="button" onClick={save} disabled={!dirty}>
-          Save answers
-        </Button>
-      </div>
+      {!structureLocked && (
+        <div className="flex justify-end">
+          <Button loading={saving} type="button" onClick={save} disabled={!dirty}>
+            Save answers
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

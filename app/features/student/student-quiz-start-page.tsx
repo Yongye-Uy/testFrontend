@@ -54,8 +54,8 @@ export function StudentQuizStartPage({
   const cls = classData.data;
   const assessmentStatus = assessmentStatusData.data;
 
-  // require_previous=false → one attempt only; block if already submitted
-  const isOneAttempt = currentItem?.require_previous === false;
+  // require_pass_threshold=false → one attempt only; block if already submitted
+  const isOneAttempt = !currentItem?.require_pass_threshold;
   const alreadySubmitted =
     assessmentStatus?.status === "completed" || assessmentStatus?.status === "graded";
   const blocked = isOneAttempt && alreadySubmitted;

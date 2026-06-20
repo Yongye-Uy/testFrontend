@@ -108,8 +108,9 @@ export function LecturerClassDetailPage({ id }: { id: string }) {
         id,
         weeksRef.current.map((week) => week.id),
       );
-    } catch {
+    } catch (err) {
       await lessons.reload();
+      if (err instanceof Error) setActionInfo(err.message);
     }
   }
   function reorderItems(lessonId: string, items: ClassLesson["items"]) {
@@ -126,8 +127,9 @@ export function LecturerClassDetailPage({ id }: { id: string }) {
         lessonId,
         week.items.map((item) => item.id),
       );
-    } catch {
+    } catch (err) {
       await lessons.reload();
+      if (err instanceof Error) setActionInfo(err.message);
     }
   }
   async function unlockItem(lessonItemId: string) {
@@ -148,10 +150,14 @@ export function LecturerClassDetailPage({ id }: { id: string }) {
       );
     }
   }
-  function archiveItem() {
-    setActionInfo(
-      "Archiving a single item isn't exposed by the course-service yet — it's on the backlog.",
-    );
+  async function archiveItem(item: LessonItem) {
+    setActionInfo("");
+    try {
+      await api.lessons.archiveItem(id, item.id);
+      await lessons.reload();
+    } catch (err) {
+      setActionInfo(err instanceof Error ? err.message : "Archive failed");
+    }
   }
 
   const allItems = weeks.flatMap((lesson) => lesson.items);
@@ -426,10 +432,20 @@ export function LecturerClassDetailPage({ id }: { id: string }) {
                         onPersistItems={() => persistItemOrder(lesson.id)}
                         onUnlock={unlockItem}
                         onAddMaterial={() => setMaterialTarget(lesson.id)}
-                        onAddAssessment={() => setAssessmentTarget(lesson.id)}
+                        onAddAssessment={() =>
+                          router.push(
+                            `/assessments/new?classId=${encodeURIComponent(id)}&lessonId=${encodeURIComponent(lesson.id)}`,
+                          )
+                        }
                         onReuse={() => setReuseOpen(true)}
                         onAddWeek={() => setLessonModalOpen(true)}
-                        onPreview={(item) => setPreviewItem(item)}
+                        onPreview={(item) => {
+                          if (item.item_type === "assessment") {
+                            router.push(`/assessments/${item.item_id}`);
+                          } else {
+                            setPreviewItem(item);
+                          }
+                        }}
                         onEdit={editItem}
                         onArchive={archiveItem}
                         onDeleteWeek={() =>
@@ -545,11 +561,11 @@ export function LecturerClassDetailPage({ id }: { id: string }) {
         }}
       />
 
-      <PreviewModal
+      {/* <PreviewModal
         code={code}
         item={previewItem}
         onClose={() => setPreviewItem(null)}
-      />
+      /> */}
 
       <AddMaterialModal
         classId={id}
@@ -562,7 +578,7 @@ export function LecturerClassDetailPage({ id }: { id: string }) {
         }}
       />
 
-      <AddAssessmentModal
+      {/* <AddAssessmentModal
         classId={id}
         lessonId={assessmentTarget}
         onClose={() => setAssessmentTarget(null)}
@@ -570,7 +586,7 @@ export function LecturerClassDetailPage({ id }: { id: string }) {
           setAssessmentTarget(null);
           await lessons.reload();
         }}
-      />
+      /> */}
 
       <DeleteLessonItemModal
         classId={id}
@@ -718,10 +734,12 @@ function ArchivedItemsModal({
 }) {
   const archived = useAsync(
     () =>
-      open ? api.lessons.archived(classId) : Promise.resolve({ lessons: [] }),
+      open
+        ? api.lessons.archivedItems(classId)
+        : Promise.resolve({ items: [] }),
     [open ? "open" : "closed", classId],
   );
-  const lessons = archived.data?.lessons ?? [];
+  const items = archived.data?.items ?? [];
 
   return (
     <Modal
@@ -734,22 +752,27 @@ function ArchivedItemsModal({
       <div className="space-y-4">
         {archived.loading && <LoadingState label="Loading archived items" />}
         {archived.error && <ErrorState message={archived.error} />}
-        {!archived.loading && lessons.length === 0 ? (
+        {!archived.loading && items.length === 0 ? (
           <p className="rounded-xl bg-cream-100 px-4 py-10 text-center text-sm text-ink-600">
             No archived items yet.
           </p>
         ) : (
           <div className="max-h-[360px] space-y-2 overflow-y-auto">
-            {lessons.map((lesson) => (
+            {items.map((item) => (
               <div
-                key={lesson.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-ink-100 bg-cream-50 px-4 py-3"
+                key={item.id}
+                className="flex items-center gap-3 rounded-xl border border-ink-100 bg-cream-50 px-4 py-3"
               >
-                <span className="font-medium text-navy-900">
-                  {lesson.title}
+                <span className="shrink-0 text-ink-400">
+                  <ItemIcon item={item} />
                 </span>
-                <span className="text-xs text-ink-500">
-                  {lesson.item_count} item{lesson.item_count === 1 ? "" : "s"}
+                <span className="min-w-0 flex-1 truncate font-medium text-navy-900">
+                  {item.title}
+                </span>
+                <span className="shrink-0 rounded-md bg-ink-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-ink-500">
+                  {item.item_type === "assessment"
+                    ? "Assessment"
+                    : materialBadge(item)}
                 </span>
               </div>
             ))}

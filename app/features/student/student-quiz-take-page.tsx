@@ -154,11 +154,25 @@ export function StudentQuizTakePage({
     try {
       if (!isMulti) {
         await api.submissions.clearOptions(submissionId, Number(questionId));
+        await api.submissions.selectOption(submissionId, {
+          question_id: Number(questionId),
+          option_id: Number(optionId),
+        });
+      } else {
+        // For multi-select, toggle: deselect if already selected, select otherwise
+        const wasSelected = selected[questionId]?.has(optionId);
+        if (wasSelected) {
+          await api.submissions.deselectOption(submissionId, {
+            question_id: Number(questionId),
+            option_id: Number(optionId),
+          });
+        } else {
+          await api.submissions.selectOption(submissionId, {
+            question_id: Number(questionId),
+            option_id: Number(optionId),
+          });
+        }
       }
-      await api.submissions.selectOption(submissionId, {
-        question_id: Number(questionId),
-        option_id: Number(optionId),
-      });
     } catch {
       // best effort — state already updated locally
     }

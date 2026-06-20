@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { ErrorState } from "@/components/shared/error-state";
@@ -27,9 +27,11 @@ function emptyOption(): DraftOption {
 export function OptionEditor({
   questionId,
   type,
+  structureLocked = false,
 }: {
   questionId: string;
   type: string;
+  structureLocked?: boolean;
 }) {
   const options = useAsync(
     () => api.questions.listOptions(questionId),
@@ -74,6 +76,7 @@ export function OptionEditor({
   const correctCount = draft.filter((row) => row.is_correct).length;
 
   function updateRow(key: string, patch: Partial<DraftOption>) {
+    if (structureLocked) return;
     setDirty(true);
     setDraft((current) =>
       current.map((row) => (row.key === key ? { ...row, ...patch } : row)),
@@ -81,7 +84,7 @@ export function OptionEditor({
   }
 
   async function saveWith(current: DraftOption[]) {
-    if (saving) return;
+    if (saving || structureLocked) return;
     setSaving(true);
     setError("");
     try {
@@ -109,11 +112,13 @@ export function OptionEditor({
   }
 
   function addRow() {
+    if (structureLocked) return;
     setDirty(true);
     setDraft((current) => [...current, emptyOption()]);
   }
 
   function removeRow(key: string) {
+    if (structureLocked) return;
     const next = draft.filter((row) => row.key !== key);
     setDraft(next);
     setDirty(true);
@@ -121,6 +126,7 @@ export function OptionEditor({
   }
 
   function toggleCorrectAndSave(key: string) {
+    if (structureLocked) return;
     const next = draft.map((row) => {
       if (type === "mcq_multiple") {
         return row.key === key ? { ...row, is_correct: !row.is_correct } : row;
@@ -143,15 +149,17 @@ export function OptionEditor({
           </h3>
           {saving && <span className="text-[11px] text-ink-400">Saving…</span>}
         </div>
-        <Button variant="secondary" size="sm" type="button" onClick={addRow}>
-          + Add option
-        </Button>
+        {!structureLocked && (
+          <Button variant="secondary" size="sm" type="button" onClick={addRow}>
+            + Add option
+          </Button>
+        )}
       </div>
       {options.error && <ErrorState message={options.error} />}
-      {draft.length > 0 && correctCount === 0 && (
+      {!structureLocked && draft.length > 0 && correctCount === 0 && (
         <p className="text-xs text-gold-700">No option is marked correct yet.</p>
       )}
-      {type === "mcq_single" && correctCount > 1 && (
+      {!structureLocked && type === "mcq_single" && correctCount > 1 && (
         <p className="text-xs text-gold-700">
           Single-choice questions should have exactly one correct option.
         </p>
@@ -164,33 +172,38 @@ export function OptionEditor({
                 type={type === "mcq_multiple" ? "checkbox" : "radio"}
                 name={`correct-${questionId}`}
                 checked={row.is_correct}
+                disabled={structureLocked}
                 onChange={() => toggleCorrectAndSave(row.key)}
                 className="mt-2.5"
               />
               <div className="flex-1 space-y-2">
                 <input
                   className={inputClass}
-                  value={row.option_text}
+                  value={row.option_text ?? ""}
                   placeholder="Option text"
+                  readOnly={structureLocked}
                   onChange={(e) => updateRow(row.key, { option_text: e.target.value })}
                   onBlur={() => dirty && saveWith(draft)}
                 />
                 <textarea
                   className={textareaClass}
-                  value={row.feedback}
+                  value={row.feedback ?? ""}
                   placeholder="Feedback (optional)"
+                  readOnly={structureLocked}
                   onChange={(e) => updateRow(row.key, { feedback: e.target.value })}
                   onBlur={() => dirty && saveWith(draft)}
                 />
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                type="button"
-                onClick={() => removeRow(row.key)}
-              >
-                Remove
-              </Button>
+              {!structureLocked && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  onClick={() => removeRow(row.key)}
+                >
+                  Remove
+                </Button>
+              )}
             </div>
           </div>
         ))}
